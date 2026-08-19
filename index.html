@@ -444,11 +444,7 @@ function parseDespacho(rows){
 function parseVentas(rows){
   return rows.map(r=>{
     const sku = r['KOPRCT'];
-    const ud1 = (r['UD01PR']||'').toString().trim().toUpperCase();
-    const ud2 = (r['UD02PR']||'').toString().trim().toUpperCase();
-    let m3 = 0;
-    if(ud2==='M3') m3 = num(r['CAPRCO2']);
-    else if(ud1==='M3') m3 = num(r['CAPRCO1']);
+    const m3 = num(r['CAPRCO2']);
     return {
       sucursalCode: String(r['SUDO']??'').trim(),
       fecha: toDate(r['FEEMDO']),
@@ -1867,7 +1863,7 @@ const supabaseClient = (SUPABASE_CONFIGURED && window.supabase) ? window.supabas
 
 // Sube este número cada vez que cambie la lógica de un parser (qué columna se usa, cómo se calcula un campo, etc.)
 // para que los datos publicados se consideren obsoletos y el admin sepa que debe volver a cargar ese archivo.
-const PARSER_SCHEMA_VERSION = 6; // v6: stockOptimo incluye stockObjetivoPzs (Stock Objetivo PZS) para % de cobertura
+const PARSER_SCHEMA_VERSION = 7; // v7: ventas ahora toma m3 directo de CAPRCO2, sin depender de la columna UD02PR
 
 // Campos fecha por dataset — Supabase guarda JSON puro, así que hay que revivir Date al leer.
 const DATE_FIELDS = {
