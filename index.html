@@ -1,0 +1,2019 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anillo — Control de Supply Chain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Fragment+Mono&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg: #14171A;
+  --bg-alt: #191D20;
+  --surface: #1E2226;
+  --surface-2: #242A2E;
+  --border: #2C3237;
+  --border-soft: #23282C;
+  --amber: #C9822F;
+  --amber-soft: rgba(201,130,47,.14);
+  --pine: #3D6B52;
+  --pine-soft: rgba(61,107,82,.16);
+  --steel: #5C8CA6;
+  --steel-soft: rgba(92,140,166,.14);
+  --brick: #BF5642;
+  --brick-soft: rgba(191,86,66,.15);
+  --green: #5E9E72;
+  --green-soft: rgba(94,158,114,.15);
+  --text: #F1EDE5;
+  --text-dim: #B7B0A4;
+  --text-mute: #7C8288;
+  --radius: 10px;
+  --font-display: 'Oswald', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'Fragment Mono', monospace;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background: radial-gradient(1200px 800px at 8% -10%, #1B2622 0%, transparent 55%), var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height:100vh;
+  -webkit-font-smoothing: antialiased;
+}
+::selection{ background: var(--amber-soft); color:var(--amber); }
+a{color:inherit;}
+button{ font-family: var(--font-body); cursor:pointer; }
+::-webkit-scrollbar{ width:10px; height:10px; }
+::-webkit-scrollbar-track{ background:var(--bg); }
+::-webkit-scrollbar-thumb{ background:var(--border); border-radius:6px; }
+
+/* ===== Shell ===== */
+#app{ display:flex; min-height:100vh; }
+
+.sidebar{
+  width:230px; flex-shrink:0;
+  background: var(--bg-alt);
+  border-right:1px solid var(--border-soft);
+  padding:22px 14px;
+  display:flex; flex-direction:column; gap:26px;
+  position:sticky; top:0; height:100vh; overflow-y:auto;
+}
+.brand{ display:flex; align-items:center; gap:10px; padding:0 8px; }
+.brand-mark{ width:34px;height:34px;flex-shrink:0; }
+.brand-text .t1{ font-family:var(--font-display); font-size:16px; letter-spacing:.04em; font-weight:600; color:var(--text); line-height:1.1;}
+.brand-text .t2{ font-size:10px; color:var(--text-mute); letter-spacing:.08em; text-transform:uppercase; margin-top:2px;}
+
+nav.tabs{ display:flex; flex-direction:column; gap:2px; }
+.tab-btn{
+  display:flex; align-items:center; gap:10px;
+  background:transparent; border:none; color:var(--text-dim);
+  padding:10px 12px; border-radius:8px; text-align:left;
+  font-size:13.5px; font-weight:500; letter-spacing:.01em;
+  transition:.15s ease;
+}
+.tab-btn .num{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-mute); width:16px; }
+.tab-btn:hover{ background:var(--surface); color:var(--text); }
+.tab-btn.active{ background:var(--amber-soft); color:var(--amber); }
+.tab-btn.active .num{ color:var(--amber); }
+.tab-btn:disabled{ opacity:.35; cursor:not-allowed; }
+.tab-btn:disabled:hover{ background:transparent; color:var(--text-dim); }
+
+.side-foot{ margin-top:auto; display:flex; flex-direction:column; gap:8px; }
+.data-status{ font-size:11px; color:var(--text-mute); padding:0 8px; line-height:1.5; }
+.side-btn{
+  background:var(--surface); border:1px solid var(--border); color:var(--text-dim);
+  padding:9px 12px; border-radius:8px; font-size:12px; font-weight:500;
+  display:flex; align-items:center; gap:8px; justify-content:center;
+}
+.side-btn:hover{ border-color:var(--amber); color:var(--amber); }
+
+main.content{ flex:1; min-width:0; padding:28px 34px 60px; }
+
+.page-head{ display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:22px; flex-wrap:wrap; }
+.page-head h1{ font-family:var(--font-display); font-size:26px; font-weight:600; letter-spacing:.01em; margin:0 0 4px; }
+.page-head .sub{ color:var(--text-mute); font-size:13px; }
+.eyebrow{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--amber); margin-bottom:6px; display:block;}
+
+.filters-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.select{
+  background:var(--surface); border:1px solid var(--border); color:var(--text);
+  padding:8px 12px; border-radius:8px; font-size:12.5px; font-weight:500;
+  min-width:150px;
+}
+.select:focus{ outline:1px solid var(--amber); }
+
+/* ===== Cards / Grid ===== */
+.grid{ display:grid; gap:16px; }
+.grid-4{ grid-template-columns:repeat(4,1fr); }
+.grid-3{ grid-template-columns:repeat(3,1fr); }
+.grid-2{ grid-template-columns:repeat(2,1fr); }
+@media (max-width:1300px){ .grid-4{grid-template-columns:repeat(2,1fr);} .grid-3{grid-template-columns:repeat(2,1fr);} }
+
+.card{
+  background:var(--surface); border:1px solid var(--border-soft); border-radius:var(--radius);
+  padding:18px 20px;
+}
+.card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.card-title{ font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.07em; color:var(--text-dim); }
+.card-title small{ display:block; font-size:10px; text-transform:none; letter-spacing:0; color:var(--text-mute); font-weight:400; margin-top:2px;}
+
+/* KPI */
+.kpi{
+  background:var(--surface); border:1px solid var(--border-soft); border-radius:var(--radius);
+  padding:18px 20px; position:relative; overflow:hidden;
+}
+.kpi::before{
+  content:""; position:absolute; right:-30px; top:-30px; width:100px; height:100px; border-radius:50%;
+  background:var(--ring-color, var(--amber-soft)); opacity:.5; filter:blur(2px);
+}
+.kpi .label{ font-size:11px; color:var(--text-mute); text-transform:uppercase; letter-spacing:.07em; font-weight:600; }
+.kpi .value{ font-family:var(--font-display); font-size:32px; font-weight:600; margin-top:8px; letter-spacing:.01em; }
+.kpi .value .unit{ font-size:14px; color:var(--text-mute); font-family:var(--font-body); font-weight:500; margin-left:4px;}
+.kpi .delta{ margin-top:8px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:5px; }
+.kpi .delta.up{ color:var(--green); }
+.kpi .delta.down{ color:var(--brick); }
+.kpi .delta.flat{ color:var(--text-mute); }
+.kpi .foot{ margin-top:4px; font-size:11px; color:var(--text-mute); }
+
+/* Ring gauge */
+.ring-wrap{ display:flex; align-items:center; gap:16px; }
+.ring-num{ font-family:var(--font-display); font-size:26px; font-weight:600; }
+.ring-label{ font-size:11px; color:var(--text-mute); text-transform:uppercase; letter-spacing:.06em; }
+
+/* Table */
+.table-wrap{ overflow-x:auto; }
+table.data{ width:100%; border-collapse:collapse; font-size:12.5px; }
+table.data th{
+  text-align:left; padding:9px 12px; color:var(--text-mute); font-weight:600;
+  text-transform:uppercase; font-size:10.5px; letter-spacing:.05em;
+  border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0; background:var(--surface);
+}
+table.data td{ padding:9px 12px; border-bottom:1px solid var(--border-soft); white-space:nowrap; color:var(--text-dim); }
+table.data tr:hover td{ background:var(--surface-2); color:var(--text); }
+table.data td.num, table.data th.num{ text-align:right; font-family:var(--font-mono); }
+.badge{ display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:10.5px; font-weight:600; letter-spacing:.02em; }
+.badge.ok{ background:var(--green-soft); color:var(--green); }
+.badge.warn{ background:var(--amber-soft); color:var(--amber); }
+.badge.bad{ background:var(--brick-soft); color:var(--brick); }
+.badge.neutral{ background:var(--surface-2); color:var(--text-mute); }
+.bar-cell{ width:90px; height:6px; background:var(--surface-2); border-radius:4px; overflow:hidden; display:inline-block; vertical-align:middle;}
+.bar-cell i{ display:block; height:100%; background:var(--amber); }
+
+/* Upload screen */
+.upload-screen{ max-width:980px; margin:0 auto; }
+.upload-hero{ text-align:left; margin-bottom:30px; }
+.upload-hero .rings{ width:56px; height:56px; margin-bottom:16px; }
+.upload-hero h1{ font-family:var(--font-display); font-size:34px; font-weight:600; margin:0 0 8px; letter-spacing:.005em;}
+.upload-hero p{ color:var(--text-dim); font-size:14.5px; max-width:640px; line-height:1.6; margin:0;}
+.upload-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:26px; }
+.upload-slot{
+  border:1.5px dashed var(--border); border-radius:var(--radius); padding:16px 18px;
+  display:flex; align-items:center; gap:14px; background:var(--surface); transition:.15s;
+  position:relative;
+}
+.upload-slot.filled{ border-style:solid; border-color:var(--pine); background:var(--pine-soft); }
+.upload-slot.filled .slot-icon{ background:var(--pine); color:#fff; }
+.upload-slot input{ position:absolute; inset:0; opacity:0; cursor:pointer; }
+.slot-icon{ width:36px;height:36px; border-radius:8px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--text-mute); font-family:var(--font-mono); font-size:13px; font-weight:600;}
+.slot-text{ flex:1; min-width:0; }
+.slot-text .name{ font-size:13px; font-weight:600; color:var(--text); }
+.slot-text .hint{ font-size:11px; color:var(--text-mute); margin-top:2px; }
+.slot-text .status{ font-size:11px; margin-top:3px; font-weight:600; }
+.slot-text .status.pending{ color:var(--text-mute); }
+.slot-text .status.done{ color:var(--pine); }
+.slot-text .status.error{ color:var(--brick); }
+.upload-actions{ display:flex; align-items:center; gap:14px; margin-top:26px; }
+.btn-primary{
+  background:var(--amber); color:#1A140C; border:none; padding:12px 22px; border-radius:9px;
+  font-weight:700; font-size:13.5px; letter-spacing:.01em;
+}
+.btn-primary:disabled{ background:var(--surface-2); color:var(--text-mute); }
+.upload-note{ font-size:12px; color:var(--text-mute); }
+
+/* Empty */
+.empty-note{ color:var(--text-mute); font-size:12.5px; padding:20px; text-align:center; }
+
+/* misc */
+.hidden{ display:none !important; }
+
+/* Modal */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(10,12,14,.72); z-index:200;
+  display:flex; align-items:center; justify-content:center; padding:24px;
+  backdrop-filter: blur(2px);
+}
+.modal-box{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  max-width:920px; width:100%; max-height:82vh; display:flex; flex-direction:column;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);
+}
+.modal-head{ display:flex; align-items:flex-start; justify-content:space-between; padding:18px 22px; border-bottom:1px solid var(--border-soft); }
+.modal-title{ font-family:var(--font-display); font-size:17px; font-weight:600; }
+.modal-sub{ font-size:11.5px; color:var(--text-mute); margin-top:3px; }
+.modal-close{ background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim); width:28px;height:28px; border-radius:7px; font-size:15px; line-height:1; flex-shrink:0; }
+.modal-close:hover{ color:var(--text); border-color:var(--amber); }
+.modal-body{ padding:0 22px 20px; overflow-y:auto; }
+.matrix-cell{ cursor:pointer; transition:.1s; }
+.matrix-cell:hover{ outline:1.5px solid var(--amber); outline-offset:-1.5px; }
+.legend-row{ display:flex; gap:16px; flex-wrap:wrap; margin-top:10px; }
+.legend-item{ display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-dim); }
+.legend-dot{ width:9px;height:9px;border-radius:2px; }
+.chart-box{ position:relative; }
+.two-col{ display:grid; grid-template-columns:1.4fr 1fr; gap:16px; }
+@media (max-width:1300px){ .two-col{ grid-template-columns:1fr; } }
+.search{
+  background:var(--surface); border:1px solid var(--border); color:var(--text);
+  padding:8px 12px; border-radius:8px; font-size:12.5px; min-width:200px;
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+window.APP_STATE = {
+  data: { ventas:null, despacho:null, recepcion:null, fillrate:null, stock:null, stockOptimo:null, pendientes:null, objetivos:null },
+  skuFamilia: {},
+  activeTab: 'upload',
+  chartInstances: {}
+};
+</script>
+
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+const SUCURSAL_MAP = {
+  '101':'Concón', '301':'Llanquihue', '501':'Quirihue', '201':'Maitencillo',
+  '701':'Temuco', '801':'Castro', 'RM1':'Chicureo', '901':'Panguipulli', '602':'Litueche'
+};
+const SUCURSAL_ORDER = ['501','101','201','602','301','701','901','801','RM1'];
+function sucursalName(code){
+  if(code===null||code===undefined) return 'Sin sucursal';
+  const c = String(code).trim().toUpperCase();
+  if(c==='CLIENTE') return 'Cliente';
+  return SUCURSAL_MAP[c] || c || 'Sin sucursal';
+}
+function nameToCode(name){
+  const n = String(name).trim().toLowerCase();
+  for(const [code, nm] of Object.entries(SUCURSAL_MAP)){
+    if(nm.toLowerCase()===n) return code;
+  }
+  return null;
+}
+
+const FILE_SLOTS = [
+  { key:'pendientes', name:'Pedidos pendientes', hint:'01_PENDIENTES', sheetNames:['PENDIENTES'], requiredCol:'Cantidad Pedida' },
+  { key:'stock', name:'Stock por sucursal', hint:'02_STOCK_SUCURSALES', sheetNames:['STOCK SUCURSALES'], requiredCol:'Stock Disponible' },
+  { key:'stockOptimo', name:'Stock óptimo', hint:'04_Stock_Optimo_Sucursales', sheetNames:['Optimo Stock'], requiredCol:'Punto de Reorden (ROP)' },
+  { key:'recepcion', name:'Recepción materia prima', hint:'05_Reporte_Recepción_Fechas', sheetNames:['Hoja N°1','Hoja N\u00b01'], requiredCol:'N° de Recepción' },
+  { key:'despacho', name:'Despachos del mes', hint:'06_Despacho_de_mes', sheetNames:['Despacho'], requiredCol:'CANTIDAD' },
+  { key:'ventas', name:'Ventas del mes', hint:'07_VENTAS_DEL_MES', sheetNames:['VENTAS'], requiredCol:'VANEDO' },
+  { key:'fillrate', name:'Fill rate (entregas)', hint:'08_FILL_RATE', sheetNames:['FILL RATE'], requiredCol:'F_COMPROM' },
+  { key:'objetivos', name:'Objetivos del mes', hint:'09_OBJETIVOS_DEL_MES', sheetNames:['Hoja1'], requiredCol:'PLAN' },
+];
+
+/* ============================================================
+   EXCEL READING HELPERS
+   ============================================================ */
+function findSheet(workbook, slot){
+  for(const nm of slot.sheetNames){
+    if(workbook.SheetNames.includes(nm)) return workbook.Sheets[nm];
+  }
+  // fallback: find a sheet whose header row contains requiredCol
+  for(const nm of workbook.SheetNames){
+    const ws = workbook.Sheets[nm];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, range:0, blankrows:false});
+    for(let i=0;i<Math.min(rows.length,5);i++){
+      if(rows[i] && rows[i].some(c => String(c).trim() === slot.requiredCol)) return ws;
+    }
+  }
+  return workbook.Sheets[workbook.SheetNames[0]];
+}
+
+function sheetRows(ws){
+  const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+  // find header row = first row containing >=3 non-null string cells
+  let headerIdx = 0;
+  for(let i=0;i<Math.min(raw.length,6);i++){
+    const r = raw[i]||[];
+    const strCount = r.filter(c => typeof c === 'string' && c.trim()!=='').length;
+    if(strCount>=3){ headerIdx = i; break; }
+  }
+  const headers = (raw[headerIdx]||[]).map(h => h===null||h===undefined? '' : String(h).trim());
+  const out = [];
+  for(let i=headerIdx+1;i<raw.length;i++){
+    const r = raw[i];
+    if(!r || r.every(c=>c===null||c==='')) continue;
+    const obj = {};
+    headers.forEach((h,idx)=>{ if(h) obj[h]=r[idx]; });
+    out.push(obj);
+  }
+  return out;
+}
+
+function toDate(v){
+  if(v===null||v===undefined||v==='') return null;
+  if(v instanceof Date) return isNaN(v)? null : v;
+  if(typeof v==='number'){ const d = XLSX.SSF? null:null; }
+  if(typeof v==='string'){
+    const m = v.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if(m) return new Date(+m[3], +m[2]-1, +m[1]);
+    const d = new Date(v);
+    if(!isNaN(d)) return d;
+  }
+  return null;
+}
+function num(v){ const n = Number(v); return isNaN(n)?0:n; }
+function normText(s){
+  return (s===null||s===undefined) ? '' : s.toString().trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+}
+function fmtInt(n){ return Math.round(n).toLocaleString('es-CL'); }
+function fmtM3(n){ return n.toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1}); }
+function fmtMoney(n){ return '$'+Math.round(n).toLocaleString('es-CL'); }
+function fmtPct(n){ return (n*100).toLocaleString('es-CL',{minimumFractionDigits:1,maximumFractionDigits:1})+'%'; }
+function fmtDate(d){ if(!d) return '—'; return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function diasBucketForRow(r){
+  if(!r.fEmision || !r.fEntrega) return null;
+  let dias = Math.round((r.fEntrega - r.fEmision)/86400000);
+  if(dias<0) dias = 0;
+  return dias>30 ? '30+' : String(dias);
+}
+function savedAtLabel(iso){
+  if(!iso) return 'recién';
+  const d = new Date(iso);
+  const mins = Math.round((Date.now()-d.getTime())/60000);
+  if(mins<1) return 'recién';
+  if(mins<60) return 'hace '+mins+' min';
+  const hrs = Math.round(mins/60);
+  if(hrs<24) return 'hace '+hrs+' h';
+  return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'});
+}
+function ymKey(d){ return d? (d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')) : null; }
+
+/* ============================================================
+   PARSERS -> normalized rows
+   ============================================================ */
+function parsePendientes(rows){
+  return rows.map(r=>({
+    orden: r['ORDEN'],
+    sucursalCode: String(r['Sucursal']??'').trim(),
+    fechaPedido: toDate(r['Fecha de Pedido']),
+    feer: toDate(r['FEER']),
+    sku: r['SKU'],
+    desc: r['NOKOZO'] || '',
+    cantidadPedida: num(r['Cantidad Pedida']),
+    entregado: num(r['Entregado']),
+    cliente: r['CLIENTE'] || '',
+  })).filter(r=>r.sucursalCode);
+}
+
+function parseStock(rows){
+  const arr = rows.map(r=>({
+    sku: r['SKU'],
+    desc: r['DESCRIPCION']||'',
+    sucursalCode: String(r['Sucursal']??'').trim(),
+    stockDisponible: num(r['Stock Disponible']),
+    stockM3: num(r['STFI2']),
+    familia: (r['Familia']||'SIN FAMILIA').trim ? (r['Familia']||'SIN FAMILIA').toString().trim() : 'SIN FAMILIA',
+  })).filter(r=>r.sucursalCode);
+  arr.forEach(r=>{ if(r.sku && !window.APP_STATE.skuFamilia[r.sku]) window.APP_STATE.skuFamilia[r.sku]=r.familia; });
+  return arr;
+}
+
+function parseStockOptimo(rows){
+  return rows.map(r=>({
+    sucursalCode: String(r['SUDO']??'').trim(),
+    sku: r['KOPRCT'],
+    desc: r['NOKOPRCT']||'',
+    familia: r['Familia']||'SIN FAMILIA',
+    um: (r['UM']||'').toString().trim(),
+    vpd: num(r['Venta Promedio Diaria (VPD)']),
+    leadTime: num(r['Lead Time (LT) en días']),
+    ss: num(r['Stock de Seguridad (SS)']),
+    rop: num(r['Punto de Reorden (ROP)']),
+    stockActual: num(r['Stock Actual']),
+    stockObjetivoPzs: num(r['Stock Objetivo PZS']),
+    saldo: num(r['SALDO (Pqts)']),
+    cobertura: num(r['Cobertura Actual']),
+    estadoAlerta: (r['Estado de Alerta']||'').toString().trim(),
+    estado: (r['Estado']||'').toString().trim(),
+  })).filter(r=>r.sucursalCode);
+}
+
+function parseRecepcion(rows){
+  return rows.map(r=>({
+    numRecepcion: r['N° de Recepción'],
+    fecha: toDate(r['Fecha']),
+    descripcion: r['Descripcion']||'',
+    cantidad: num(r['Cantidad']),
+    m3: num(r['M3']),
+    comuna: r['Comuna']||'',
+    proveedor: r['Proveedor']||'',
+    estado: r['Estado']||'',
+  })).filter(r=>r.fecha);
+}
+
+function parseDespacho(rows){
+  return rows.map(r=>{
+    const sku = r['CODIGO'];
+    const unidad = (r['UNIDAD']||'').toString().trim().toUpperCase();
+    const cantidad = Math.abs(num(r['CANTIDAD']));
+    const origenCode = String(r['SUDO']??'').trim();
+    const suendo = String(r['SUENDO']??'').trim();
+    return {
+      origenCode,
+      sucursalCode: suendo || 'CLIENTE', // SUENDO = destino; en blanco = despacho directo a cliente
+      fecha: toDate(r['EMISION']),
+      sku, desc: r['DESCRIPCIO']||'',
+      cantidad,
+      unidad,
+      m3: unidad==='M3' ? cantidad : 0,
+      monto: Math.abs(num(r['MONTO'])),
+      tipoTransa: r['TIPOTRANSA']||'',
+      familia: window.APP_STATE.skuFamilia[sku] || 'SIN FAMILIA',
+      numDoc: r['NUM_DOC'] || '',
+    };
+  }).filter(r=>r.fecha);
+}
+
+function parseVentas(rows){
+  return rows.map(r=>{
+    const sku = r['KOPRCT'];
+    const ud1 = (r['UD01PR']||'').toString().trim().toUpperCase();
+    const ud2 = (r['UD02PR']||'').toString().trim().toUpperCase();
+    let m3 = 0;
+    if(ud2==='M3') m3 = num(r['CAPRCO2']);
+    else if(ud1==='M3') m3 = num(r['CAPRCO1']);
+    return {
+      sucursalCode: String(r['SUDO']??'').trim(),
+      fecha: toDate(r['FEEMDO']),
+      sku, tido: r['TIDO']||'',
+      montoNeto: num(r['VANEDO']),
+      montoBruto: num(r['VABRDO']),
+      m3,
+      familia: window.APP_STATE.skuFamilia[sku] || 'SIN FAMILIA',
+      cliente: r['NOKOEN'] || 'Sin nombre',
+    };
+  }).filter(r=>r.sucursalCode && r.fecha);
+}
+
+function parseFillRate(rows){
+  return rows.map(r=>{
+    const fCompromiso = toDate(r['F_COMPROM']);
+    const fEntrega = toDate(r['FRENTREGA']);
+    const aTiempo = num(r['A_TIEMPO']);
+    const aDestiempo = num(r['A_DESTPO']);
+    const entregado = num(r['ENTREGADO']);
+    return {
+      sucursalCode: String(r['SUCURSAL']??'').trim(),
+      cliente: r['NOM_CLIEN']||'',
+      sku: r['CODIGO']||'',
+      producto: r['NOM_PRODU']||'',
+      fEmision: toDate(r['F_EMISION']),
+      fCompromiso, fEntrega,
+      aTiempo, aDestiempo, entregado,
+      valNeto: num(r['VAL_NETO']),
+      canComprometida: num(r['CAN_COMPRO']),
+      numero: r['NUMERO']||'',
+    };
+  }).filter(r=>r.sucursalCode && r.fCompromiso);
+}
+
+function parseObjetivos(rows){
+  const out = { abastecimiento:{total:0,items:[]}, produccion:{total:0,items:[]}, logistica:{total:0,bySucursal:{}}, comercial:{total:0,bySucursal:{}} };
+  let area = null;
+  const areaKeyMap = { 'ABASTECIMIENTO':'abastecimiento','PRODUCCIÓN':'produccion','PRODUCCION':'produccion','LOGISTICA':'logistica','LOGÍSTICA':'logistica','COMERCIAL':'comercial' };
+  rows.forEach(r=>{
+    const rawArea = r['ÁREA'];
+    if(rawArea && String(rawArea).trim()!==''){
+      const key = String(rawArea).split('\n')[0].trim().toUpperCase();
+      area = areaKeyMap[key] || null;
+    }
+    if(!area) return;
+    const item = (r['ÍTEM']||'').toString().trim();
+    const plan = num(r['PLAN']);
+    if(!item) return;
+    if(item.toUpperCase()==='TOTAL'){ out[area].total = plan; return; }
+    if(area==='logistica' || area==='comercial'){
+      const code = nameToCode(item);
+      if(code) out[area].bySucursal[code] = plan;
+      else if(item.toUpperCase()==='DIRECTO CLIENTE') out[area].bySucursal['CLIENTE'] = plan;
+      else out[area].bySucursal[item] = plan;
+    } else {
+      out[area].items.push({ nombre:item, plan });
+    }
+  });
+  return out;
+}
+
+const PARSERS = {
+  pendientes: parsePendientes, stock: parseStock, stockOptimo: parseStockOptimo,
+  recepcion: parseRecepcion, despacho: parseDespacho, ventas: parseVentas,
+  fillrate: parseFillRate, objetivos: parseObjetivos,
+};
+
+/* Order matters: stock must be parsed before despacho/ventas so skuFamilia is populated */
+const PARSE_ORDER = ['pendientes','stock','stockOptimo','recepcion','despacho','ventas','fillrate','objetivos'];
+
+/* ============================================================
+   AGGREGATION HELPERS
+   ============================================================ */
+function groupSum(arr, keyFn, valFn){
+  const m = {};
+  arr.forEach(r=>{ const k=keyFn(r); if(k===null||k===undefined) return; m[k]=(m[k]||0)+valFn(r); });
+  return m;
+}
+function sortedSucursalCodes(map){
+  const keys = Object.keys(map);
+  return keys.sort((a,b)=> {
+    const ia = SUCURSAL_ORDER.indexOf(a), ib = SUCURSAL_ORDER.indexOf(b);
+    if(ia===-1 && ib===-1) return a.localeCompare(b);
+    if(ia===-1) return 1; if(ib===-1) return -1;
+    return ia-ib;
+  });
+}
+function latestMonthKey(rows, fechaField){
+  let max = null;
+  rows.forEach(r=>{ if(r[fechaField] && (!max || r[fechaField]>max)) max = r[fechaField]; });
+  return max ? ymKey(max) : null;
+}
+function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+
+/* ============================================================
+   KPI COMPUTATION
+   ============================================================ */
+function computeAll(){
+  const D = window.APP_STATE.data;
+  const R = {};
+
+  // ---- Ventas ----
+  if(D.ventas){
+    const mk = latestMonthKey(D.ventas,'fecha');
+    const rows = D.ventas.filter(r=> ymKey(r.fecha)===mk);
+    const rowsM3 = rows.filter(r=> r.familia !== 'FERT'); // FERT se mide en otra unidad, no en m3
+    const byClienteMonto = groupSum(rows, r=>r.cliente, r=>r.montoNeto);
+    const topClientes = Object.entries(byClienteMonto).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    R.ventasMes = { monthKey:mk, rows,
+      totalM3: rowsM3.reduce((s,r)=>s+r.m3,0),
+      totalNeto: rows.reduce((s,r)=>s+r.montoNeto,0),
+      bySucursalM3: groupSum(rowsM3, r=>r.sucursalCode, r=>r.m3),
+      bySucursalMonto: groupSum(rows, r=>r.sucursalCode, r=>r.montoNeto),
+      byFamiliaM3: groupSum(rowsM3, r=>r.familia, r=>r.m3),
+      byDay: groupSum(rowsM3, r=>r.fecha.getDate(), r=>r.m3),
+      topClientes,
+    };
+  }
+
+  // ---- Despachos ----
+  if(D.despacho){
+    const mk = latestMonthKey(D.despacho,'fecha');
+    const rows = D.despacho.filter(r=> ymKey(r.fecha)===mk);
+    const rowsM3 = rows.filter(r=> r.familia !== 'FERT'); // FERT se mide en otra unidad, no en m3
+    // Quirihue es la planta de origen, no un destino real: se excluye de todo lo que se agrupa "por sucursal"
+    const rowsDest = rowsM3.filter(r=> r.sucursalCode !== '501');
+    // frecuencia de abastecimiento: promedio de días entre envíos, solo sucursales reales (excluye Cliente y Quirihue)
+    const rowsSucursales = rowsDest.filter(r=> r.sucursalCode !== 'CLIENTE');
+    const diasPorSucursal = groupSum(rowsSucursales, r=>r.sucursalCode, ()=>0); // placeholder to get keys
+    const frecuenciaEnvio = {};
+    Object.keys(diasPorSucursal).forEach(code=>{
+      const dias = [...new Set(rowsSucursales.filter(r=>r.sucursalCode===code).map(r=> r.fecha.toISOString().slice(0,10)))].sort();
+      if(dias.length>=2){
+        const d0 = new Date(dias[0]), d1 = new Date(dias[dias.length-1]);
+        const spanDays = (d1-d0)/86400000;
+        frecuenciaEnvio[code] = spanDays / (dias.length-1);
+      } else {
+        frecuenciaEnvio[code] = null; // datos insuficientes
+      }
+    });
+    // calendario de despachos: 1 documento (NUM_DOC) = 1 punto. Excluye Quirihue (vía rowsDest) y Cliente.
+    const rowsCalBase = rowsDest.filter(r=> r.sucursalCode !== 'CLIENTE');
+    const calDocGroups = {}; // numDoc -> { m3, fecha, sucursalCode }
+    rowsCalBase.forEach(r=>{
+      if(!r.numDoc) return;
+      if(!calDocGroups[r.numDoc]) calDocGroups[r.numDoc] = { m3:0, fecha:r.fecha, sucursalCode:r.sucursalCode };
+      calDocGroups[r.numDoc].m3 += r.m3;
+    });
+    const calDocsByKey = {}; // sucursalCode|day -> [{numDoc, m3}]
+    Object.entries(calDocGroups).forEach(([numDoc,d])=>{
+      const day = d.fecha.getDate();
+      const k = d.sucursalCode+'|'+day;
+      if(!calDocsByKey[k]) calDocsByKey[k] = [];
+      calDocsByKey[k].push({ numDoc, m3:d.m3 });
+    });
+    const calDays = [...new Set(Object.values(calDocGroups).map(d=>d.fecha.getDate()))].sort((a,b)=>a-b);
+    const calSucursales = sortedSucursalCodes(Object.fromEntries([...new Set(Object.values(calDocGroups).map(d=>d.sucursalCode))].map(c=>[c,1])));
+
+    // despachos diarios desde Quirihue: 1 documento (NUM_DOC) = 1 despacho, salvo que su volumen total sea < 15 m3
+    // (camiones que reparten su carga en 2 documentos) — esos no se cuentan como despacho aparte.
+    const docMap = {}; // numDoc -> { m3, fecha }
+    rows.forEach(r=>{
+      if(!r.numDoc) return;
+      if(!docMap[r.numDoc]) docMap[r.numDoc] = { m3:0, fecha:r.fecha };
+      docMap[r.numDoc].m3 += r.m3;
+    });
+    const docsValidos = Object.values(docMap).filter(d=> d.m3 >= 15);
+    const despachosPorDia = groupSum(docsValidos, d=>d.fecha.getDate(), ()=>1);
+    const diasConDespacho = Object.keys(despachosPorDia).map(Number).sort((a,b)=>a-b);
+    let diaPeak=null, diaBajo=null;
+    diasConDespacho.forEach(d=>{
+      if(diaPeak===null || despachosPorDia[d]>despachosPorDia[diaPeak]) diaPeak=d;
+      if(diaBajo===null || despachosPorDia[d]<despachosPorDia[diaBajo]) diaBajo=d;
+    });
+    const totalDespachosValidos = docsValidos.length;
+    const promedioDiario = diasConDespacho.length>0 ? totalDespachosValidos/diasConDespacho.length : 0;
+    const conteos = diasConDespacho.map(d=>despachosPorDia[d]);
+    const minDiario = conteos.length? Math.min(...conteos) : 0;
+    const maxDiario = conteos.length? Math.max(...conteos) : 0;
+
+    R.despachoMes = { monthKey:mk, rows, rowsDestCount: rowsDest.length,
+      totalM3: rowsDest.reduce((s,r)=>s+r.m3,0),
+      bySucursalM3: groupSum(rowsDest, r=>r.sucursalCode, r=>r.m3),
+      byFamiliaM3: groupSum(rowsDest, r=>r.familia, r=>r.m3),
+      byDay: groupSum(rowsDest, r=>r.fecha.getDate(), r=>r.m3),
+      frecuenciaEnvio,
+      calendario: { days: calDays, sucursales: calSucursales, docsByKey: calDocsByKey },
+      despachosDiarios: { porDia: despachosPorDia, dias: diasConDespacho, diaPeak, diaBajo, promedioDiario, minDiario, maxDiario, total: totalDespachosValidos },
+    };
+  }
+
+  // ---- Recepciones ----
+  if(D.recepcion){
+    const mk = latestMonthKey(D.recepcion,'fecha');
+    const rows = D.recepcion.filter(r=> ymKey(r.fecha)===mk);
+    // desglose por día x descripción, para el detalle al hacer clic en la Evolución Diaria
+    const byDayDescripcion = {}; // day -> { descripcion: m3 }
+    rows.forEach(r=>{
+      const d = r.fecha.getDate();
+      if(!byDayDescripcion[d]) byDayDescripcion[d] = {};
+      byDayDescripcion[d][r.descripcion] = (byDayDescripcion[d][r.descripcion]||0) + r.m3;
+    });
+    R.recepcionMes = { monthKey:mk, rows,
+      totalM3: rows.reduce((s,r)=>s+r.m3,0),
+      byDay: groupSum(rows, r=>r.fecha.getDate(), r=>r.m3),
+      byProveedorM3: groupSum(rows, r=>r.proveedor, r=>r.m3),
+      byComunaM3: groupSum(rows, r=>r.comuna, r=>r.m3),
+      byDescripcionM3: groupSum(rows, r=>r.descripcion, r=>r.m3),
+      byDayDescripcion,
+    };
+  }
+
+  // ---- Fill rate ----
+  if(D.fillrate){
+    const mk = latestMonthKey(D.fillrate,'fCompromiso');
+    const rows = D.fillrate.filter(r=> ymKey(r.fCompromiso)===mk);
+    const aTiempo = rows.reduce((s,r)=>s+r.aTiempo,0);
+    const total = rows.reduce((s,r)=>s+r.entregado,0);
+    const bySucA = groupSum(rows, r=>r.sucursalCode, r=>r.aTiempo);
+    const bySucTot = groupSum(rows, r=>r.sucursalCode, r=>r.entregado);
+    const bySucursalPct = {};
+    Object.keys(bySucTot).forEach(k=>{ bySucursalPct[k] = bySucTot[k]>0 ? bySucA[k]/bySucTot[k] : null; });
+
+    // matriz sucursal x días transcurridos (F_EMISION -> FRENTREGA), valor = cantidad de entregas (documentos únicos de NUMERO)
+    // los rangos >30 días se agrupan en "30+" para mantener la tabla legible
+    const diasMatrixSets = {}; // sucursalCode -> { dias: Set(numero) }
+    const diasSet = new Set();
+    rows.forEach(r=>{
+      if(!r.fEmision || !r.fEntrega || r.entregado<=0) return;
+      const bucket = diasBucketForRow(r);
+      diasSet.add(bucket);
+      if(!diasMatrixSets[r.sucursalCode]) diasMatrixSets[r.sucursalCode] = {};
+      if(!diasMatrixSets[r.sucursalCode][bucket]) diasMatrixSets[r.sucursalCode][bucket] = new Set();
+      diasMatrixSets[r.sucursalCode][bucket].add(r.numero || `${r.sku}|${r.fEntrega.getTime()}`);
+    });
+    const diasMatrix = {};
+    Object.entries(diasMatrixSets).forEach(([code,byBucket])=>{
+      diasMatrix[code] = {};
+      Object.entries(byBucket).forEach(([bucket,set])=>{ diasMatrix[code][bucket] = set.size; });
+    });
+    const diasList = [...diasSet].sort((a,b)=>{
+      if(a==='30+') return 1; if(b==='30+') return -1;
+      return Number(a)-Number(b);
+    });
+    const diasSucursales = sortedSucursalCodes(diasMatrix);
+
+    R.fillRateMes = { monthKey:mk, rows,
+      pct: total>0 ? aTiempo/total : null,
+      aTiempo, total,
+      bySucursalPct, bySucTot,
+      diasEntrega: { sucursales: diasSucursales, dias: diasList, matrix: diasMatrix },
+    };
+  }
+
+  // ---- Stock / Abastecimiento ----
+  if(D.stockOptimo){
+    const rows = D.stockOptimo;
+    const reponer = rows.filter(r=> /repon/i.test(r.estadoAlerta));
+
+    // top 5 SKU con más saldo de abastecimiento, sumando todas las sucursales
+    const saldoPorSku = {}; // sku -> { desc, familia, um, total }
+    rows.forEach(r=>{
+      if(r.saldo<=0) return;
+      if(!saldoPorSku[r.sku]) saldoPorSku[r.sku] = { sku:r.sku, desc:r.desc, familia:r.familia, um:r.um, total:0 };
+      saldoPorSku[r.sku].total += r.saldo;
+    });
+    const top5Saldo = Object.values(saldoPorSku).sort((a,b)=>b.total-a.total).slice(0,5);
+    const top5SaldoMadi = Object.values(saldoPorSku).filter(r=>r.familia==='MADI').sort((a,b)=>b.total-a.total).slice(0,5);
+
+    // % de cobertura por sucursal: suma(min(stock actual, óptimo)) / suma(óptimo), por SKU — nunca supera 100%
+    const coberturaSucursal = {}; // sucursalCode -> { cubierto, objetivo }
+    rows.forEach(r=>{
+      if(!coberturaSucursal[r.sucursalCode]) coberturaSucursal[r.sucursalCode] = { cubierto:0, objetivo:0 };
+      coberturaSucursal[r.sucursalCode].cubierto += Math.min(r.stockActual, r.stockObjetivoPzs);
+      coberturaSucursal[r.sucursalCode].objetivo += r.stockObjetivoPzs;
+    });
+    const coberturaPctSucursal = {};
+    Object.entries(coberturaSucursal).forEach(([code,v])=>{ coberturaPctSucursal[code] = v.objetivo>0 ? v.cubierto/v.objetivo : null; });
+    const coberturaGlobal = Object.values(coberturaSucursal).reduce((s,v)=>({cubierto:s.cubierto+v.cubierto, objetivo:s.objetivo+v.objetivo}), {cubierto:0,objetivo:0});
+    const coberturaGlobalPct = coberturaGlobal.objetivo>0 ? coberturaGlobal.cubierto/coberturaGlobal.objetivo : null;
+
+    R.abastecimiento = { rows, reponer,
+      countReponer: reponer.length, countTotal: rows.length,
+      bySucursalReponer: groupSum(reponer, r=>r.sucursalCode, ()=>1),
+      top5Saldo, top5SaldoMadi,
+      coberturaPctSucursal, coberturaGlobalPct,
+    };
+  }
+
+  // stock por sucursal en m3 (solo familias MADI, ROLL, PONO, TBRO)
+  if(D.stock){
+    const FAMILIAS_STOCK_M3 = ['MADI','ROLL','PONO','TBRO'];
+    const rowsStockM3 = D.stock.filter(r=> FAMILIAS_STOCK_M3.includes(r.familia));
+    R.stockM3PorSucursal = groupSum(rowsStockM3, r=>r.sucursalCode, r=>r.stockM3);
+  }
+
+  // ---- Pendientes ----
+  if(D.pendientes){
+    const rows = D.pendientes.map(r=>({...r, saldo: Math.max(0, r.cantidadPedida - r.entregado)}))
+      .filter(r=>r.saldo>0);
+    const today = new Date(); today.setHours(0,0,0,0);
+    rows.forEach(r=>{ r.atrasado = r.feer && r.feer < today; });
+    const ordenesAtrasadas = new Set(rows.filter(r=>r.atrasado).map(r=>r.orden));
+
+    // órdenes únicas por sucursal (para el gráfico y su detalle al hacer clic)
+    const ordenesUnicas = {}; // `${sucursalCode}|${orden}` -> {orden, cliente, sucursalCode, fechaPedido, atrasado}
+    rows.forEach(r=>{
+      const k = r.sucursalCode+'|'+r.orden;
+      if(!ordenesUnicas[k]) ordenesUnicas[k] = { orden:r.orden, cliente:r.cliente, sucursalCode:r.sucursalCode, fechaPedido:r.fechaPedido, atrasado:r.atrasado };
+    });
+    const ordenesDetalle = {}; // sucursalCode -> [{orden, cliente, fechaPedido, atrasado}]
+    Object.values(ordenesUnicas).forEach(o=>{
+      if(!ordenesDetalle[o.sucursalCode]) ordenesDetalle[o.sucursalCode] = [];
+      ordenesDetalle[o.sucursalCode].push(o);
+    });
+    Object.values(ordenesDetalle).forEach(arr=> arr.sort((a,b)=> (a.fechaPedido||0)-(b.fechaPedido||0)));
+    const ordenesPorSucursal = {};
+    Object.entries(ordenesDetalle).forEach(([code,arr])=>{ ordenesPorSucursal[code] = arr.length; });
+
+    R.pendientes = { rows,
+      totalSaldo: rows.reduce((s,r)=>s+r.saldo,0),
+      countOrdenes: new Set(rows.map(r=>r.orden)).size,
+      countLineasAtrasadas: rows.filter(r=>r.atrasado).length,
+      countAtrasados: ordenesAtrasadas.size,
+      bySucursal: groupSum(rows, r=>r.sucursalCode, r=>r.saldo),
+      ordenesPorSucursal, ordenesDetalle,
+    };
+  }
+
+  // ---- Objetivos ----
+  R.objetivos = D.objetivos || null;
+
+  window.APP_STATE.computed = R;
+}
+</script>
+
+<script>
+/* ============================================================
+   ICONS (inline SVG, minimal set)
+   ============================================================ */
+const ICONS = {
+  rings: `<svg viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="28" cy="28" r="25" stroke="#C9822F" stroke-width="1.4" opacity=".9"/>
+    <circle cx="28" cy="28" r="18.5" stroke="#5C8CA6" stroke-width="1.4" opacity=".8"/>
+    <circle cx="28" cy="28" r="12" stroke="#3D6B52" stroke-width="1.4" opacity=".8"/>
+    <circle cx="28" cy="28" r="5.5" fill="#C9822F"/>
+  </svg>`,
+  upload: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 8l5-5 5 5M5 21h14"/></svg>`,
+  refresh: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v6h-6"/></svg>`,
+};
+
+/* ============================================================
+   TAB DEFINITIONS
+   ============================================================ */
+const TABS = [
+  { key:'resumen', label:'Resumen ejecutivo' },
+  { key:'ventas', label:'Ventas' },
+  { key:'despachos', label:'Despachos' },
+  { key:'recepciones', label:'Abastecimiento MP' },
+  { key:'entregas', label:'Entregas a tiempo' },
+  { key:'stock', label:'Stock Sucursales' },
+];
+
+function hasAnyData(){
+  return Object.values(window.APP_STATE.data).some(v=>v!==null);
+}
+function hasAllData(){
+  return Object.values(window.APP_STATE.data).every(v=>v!==null);
+}
+
+/* ============================================================
+   RENDER: SHELL
+   ============================================================ */
+function render(){
+  const app = document.getElementById('app');
+  const state = window.APP_STATE;
+  const showUpload = state.activeTab === 'upload';
+  const savedTimes = Object.values(state._slotSavedAt||{}).filter(Boolean).sort();
+  const lastUpdated = savedTimes.length ? savedTimes[savedTimes.length-1] : null;
+
+  app.innerHTML = `
+    <div class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">${ICONS.rings}</div>
+        <div class="brand-text">
+          <div class="t1">Anillo</div>
+          <div class="t2">Supply Chain</div>
+        </div>
+      </div>
+      <nav class="tabs">
+        ${TABS.map((t,i)=>`
+          <button class="tab-btn ${state.activeTab===t.key?'active':''}" data-tab="${t.key}" ${!hasAllData()?'disabled':''}>
+            <span class="num">${String(i+1).padStart(2,'0')}</span>${t.label}
+          </button>`).join('')}
+      </nav>
+      <div class="side-foot">
+        <div class="data-status">${hasAllData() ? 'Datos publicados ✓' : `${Object.values(state.data).filter(v=>v!==null).length}/8 bases cargadas`}${lastUpdated?`<br/>Actualizado ${savedAtLabel(lastUpdated)}`:''}</div>
+        ${state.isAdmin ? `
+          <button class="side-btn" id="btn-reload">${ICONS.refresh} Cargar otras bases</button>
+          <button class="side-btn" id="btn-admin-logout">Cerrar sesión admin</button>
+        ` : `
+          <button class="side-btn" id="btn-admin-login">🔒 Modo administrador</button>
+        `}
+      </div>
+    </div>
+    <main class="content" id="content"></main>
+  `;
+
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{ if(!b.disabled){ state.activeTab=b.dataset.tab; render(); }});
+  });
+  const reloadBtn = document.getElementById('btn-reload');
+  if(reloadBtn) reloadBtn.addEventListener('click', ()=>{ state.activeTab='upload'; render(); });
+  const logoutBtn = document.getElementById('btn-admin-logout');
+  if(logoutBtn) logoutBtn.addEventListener('click', signOutAdmin);
+  const loginBtn = document.getElementById('btn-admin-login');
+  if(loginBtn) loginBtn.addEventListener('click', openAdminLoginModal);
+
+  const content = document.getElementById('content');
+  if(!hasAllData()){
+    if(state.isAdmin){ content.innerHTML = renderUploadScreen(); attachUploadHandlers(); }
+    else { content.innerHTML = renderNoDataScreen(); attachNoDataHandlers(); }
+  } else if(showUpload && state.isAdmin){
+    content.innerHTML = renderUploadScreen();
+    attachUploadHandlers();
+  } else {
+    computeAll();
+    renderTab(content, state.activeTab);
+  }
+}
+
+function renderNoDataScreen(){
+  return `
+    <div class="upload-screen">
+      <div class="upload-hero">
+        <div class="rings">${ICONS.rings}</div>
+        <span class="eyebrow">Control de indicadores</span>
+        <h1>Todavía no hay datos publicados</h1>
+        <p>El administrador aún no ha cargado las bases del mes. Vuelve a revisar más tarde, o si eres tú quien administra este dashboard, inicia sesión para cargarlas.</p>
+      </div>
+      <div class="upload-actions">
+        <button class="btn-primary" id="btn-nodata-login">🔒 Modo administrador</button>
+      </div>
+    </div>
+  `;
+}
+function attachNoDataHandlers(){
+  const btn = document.getElementById('btn-nodata-login');
+  if(btn) btn.addEventListener('click', openAdminLoginModal);
+}
+
+/* ============================================================
+   RENDER: UPLOAD SCREEN
+   ============================================================ */
+function renderUploadScreen(){
+  const state = window.APP_STATE;
+  const filled = Object.values(state.data).filter(v=>v!==null).length;
+  return `
+    <div class="upload-screen">
+      <div class="upload-hero">
+        <div class="rings">${ICONS.rings}</div>
+        <span class="eyebrow">Control de indicadores · modo administrador</span>
+        <h1>Carga tus bases del mes</h1>
+        <p>Sube los 8 reportes que exportas desde el ERP Random. Al cargarlos, quedan publicados en Supabase y todo tu equipo los ve automáticamente en el dashboard, sin necesitar cuenta ni volver a subir nada.</p>
+        ${!SUPABASE_CONFIGURED? '<p style="color:var(--brick);font-size:12.5px;margin-top:10px;">Este archivo todavía no tiene conectado el proyecto Supabase (faltan SUPABASE_URL y SUPABASE_ANON_KEY en el código). Si vas a reutilizar el proyecto de Control Pedidos, no necesitas correr el SQL de nuevo — solo pásame el mismo Project URL y anon key.</p>':''}
+        ${state._clearErrorMsg? `<p style="color:var(--brick);font-size:12.5px;margin-top:10px;">${state._clearErrorMsg}</p>`:''}
+        ${state._staleSchemaDetected? '<p style="color:var(--amber);font-size:12.5px;margin-top:10px;">Actualicé la forma en que se procesan algunos archivos — por eso te pide volver a cargarlos esta vez. De aquí en adelante no debería volver a pasar hasta el próximo ajuste de lógica.</p>':''}
+      </div>
+      <div class="upload-grid">
+        ${FILE_SLOTS.map(slot=>{
+          const filledSlot = state.data[slot.key]!==null;
+          const st = state._slotStatus?.[slot.key];
+          return `
+          <div class="upload-slot ${filledSlot?'filled':''}" data-slot="${slot.key}">
+            <div class="slot-icon">${filledSlot? '✓' : ICONS.upload}</div>
+            <div class="slot-text">
+              <div class="name">${slot.name}</div>
+              <div class="hint">${slot.hint}...xlsx</div>
+              <div class="status ${st==='error'?'error':(filledSlot?'done':'pending')}">
+                ${st==='error' ? (state._slotErrorMsg?.[slot.key] || 'No se pudo leer el archivo') : (filledSlot? (slot.key==='objetivos' ? 'publicado '+savedAtLabel(state._slotSavedAt?.[slot.key]) : (state._slotCount?.[slot.key]||0)+' filas · publicado '+savedAtLabel(state._slotSavedAt?.[slot.key])) : 'Esperando archivo')}
+              </div>
+            </div>
+            <input type="file" accept=".xlsx,.xls" data-slot="${slot.key}"/>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="upload-actions">
+        <button class="btn-primary" id="btn-go" ${filled<8?'disabled':''}>Ver dashboard →</button>
+        <span class="upload-note">${filled}/8 archivos cargados${filled>0?' · publicados para todo el equipo':''}</span>
+        ${filled>0?'<button class="side-btn" id="btn-clear-cache" style="margin-left:auto;">Borrar datos publicados</button>':''}
+      </div>
+    </div>
+  `;
+}
+
+function attachUploadHandlers(){
+  document.querySelectorAll('.upload-slot input[type=file]').forEach(inp=>{
+    inp.addEventListener('change', async (e)=>{
+      const key = e.target.dataset.slot;
+      const file = e.target.files[0];
+      if(!file) return;
+      const slot = FILE_SLOTS.find(s=>s.key===key);
+      window.APP_STATE._slotStatus = window.APP_STATE._slotStatus || {};
+      window.APP_STATE._slotCount = window.APP_STATE._slotCount || {};
+      try{
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, {type:'array', cellDates:true});
+        const ws = findSheet(wb, slot);
+        const rows = sheetRows(ws);
+        // stock must be parsed before despacho/ventas to populate skuFamilia; if user uploads out of order, re-run stock parse first if present
+        const parsed = PARSERS[key](rows);
+        window.APP_STATE.data[key] = parsed;
+        window.APP_STATE._slotStatus[key] = 'done';
+        window.APP_STATE._slotCount[key] = parsed.length;
+        window.APP_STATE._slotSavedAt = window.APP_STATE._slotSavedAt || {};
+        window.APP_STATE._slotSavedAt[key] = new Date().toISOString();
+        const { error: persistError } = await persistSlot(key, parsed) || {};
+        window.APP_STATE._slotErrorMsg = window.APP_STATE._slotErrorMsg || {};
+        if(persistError){
+          window.APP_STATE._slotStatus[key] = 'error';
+          window.APP_STATE._slotErrorMsg[key] = 'Se leyó pero no se publicó: '+(persistError.message||persistError);
+        } else {
+          window.APP_STATE._slotErrorMsg[key] = null;
+        }
+        // if stock was just uploaded, and despacho/ventas already exist, re-run their family lookup
+        if(key==='stock'){
+          if(window.APP_STATE.data.despacho) window.APP_STATE.data.despacho.forEach(r=>{ if(!r.familia || r.familia==='SIN FAMILIA') r.familia = window.APP_STATE.skuFamilia[r.sku] || 'SIN FAMILIA'; });
+          if(window.APP_STATE.data.ventas) window.APP_STATE.data.ventas.forEach(r=>{ if(!r.familia || r.familia==='SIN FAMILIA') r.familia = window.APP_STATE.skuFamilia[r.sku] || 'SIN FAMILIA'; });
+        }
+      }catch(err){
+        console.error(err);
+        window.APP_STATE._slotStatus[key] = 'error';
+        window.APP_STATE._slotErrorMsg = window.APP_STATE._slotErrorMsg || {};
+        window.APP_STATE._slotErrorMsg[key] = 'Error inesperado: '+(err && err.message ? err.message : String(err));
+      }
+      render();
+    });
+  });
+  const goBtn = document.getElementById('btn-go');
+  if(goBtn) goBtn.addEventListener('click', ()=>{
+    if(hasAllData()){ window.APP_STATE.activeTab='resumen'; render(); }
+  });
+  const clearBtn = document.getElementById('btn-clear-cache');
+  if(clearBtn) clearBtn.addEventListener('click', async ()=>{
+    if(confirm('¿Borrar los datos publicados en Supabase? Todo el equipo dejará de ver el dashboard hasta que se vuelvan a cargar.')){
+      const result = await clearPersisted();
+      if(result?.error){
+        window.APP_STATE._clearErrorMsg = 'No se pudo borrar: '+(result.error.message||result.error);
+      } else {
+        window.APP_STATE._clearErrorMsg = null;
+      }
+      render();
+    }
+  });
+}
+
+/* ============================================================
+   TAB ROUTER
+   ============================================================ */
+function renderTab(content, tab){
+  destroyCharts();
+  if(tab==='resumen') return renderResumen(content);
+  if(tab==='ventas') return renderVentas(content);
+  if(tab==='despachos') return renderDespachos(content);
+  if(tab==='recepciones') return renderRecepciones(content);
+  if(tab==='entregas') return renderEntregas(content);
+  if(tab==='stock') return renderStock(content);
+  content.innerHTML = '<div class="empty-note">Vista no encontrada.</div>';
+}
+
+function destroyCharts(){
+  Object.values(window.APP_STATE.chartInstances).forEach(c=>{ try{c.destroy();}catch(e){} });
+  window.APP_STATE.chartInstances = {};
+}
+function mkChart(id, config){
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(typeof Chart === 'undefined'){ console.warn('Chart.js no está disponible aún'); return; }
+  window.APP_STATE.chartInstances[id] = new Chart(el.getContext('2d'), config);
+}
+const CHART_DEFAULTS = {
+  color:'#B7B0A4', font:{family:'Inter', size:11},
+  gridColor:'#2C3237',
+};
+if(typeof Chart !== 'undefined'){
+  Chart.defaults.color = CHART_DEFAULTS.color;
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  Chart.defaults.font.size = 11;
+  Chart.defaults.borderColor = CHART_DEFAULTS.gridColor;
+}
+
+function monthLabel(mk){
+  if(!mk) return '—';
+  const [y,m] = mk.split('-');
+  const names = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return names[+m-1]+' '+y;
+}
+
+function deltaBadge(actual, plan){
+  if(plan===undefined || plan===null || plan===0) return `<span class="badge neutral">Sin meta</span>`;
+  const pct = actual/plan;
+  const cls = pct>=1 ? 'ok' : (pct>=0.85 ? 'warn':'bad');
+  return `<span class="badge ${cls}">${fmtPct(pct)} de meta</span>`;
+}
+
+/* ============================================================
+   RING GAUGE (signature element) — concentric growth-ring style
+   ============================================================ */
+function ringGauge(pct, size, color, label, centerText){
+  const r1 = size*0.46, r2=size*0.36, r3=size*0.26;
+  const c = size/2;
+  function arc(r, pct, col, width){
+    const circ = 2*Math.PI*r;
+    const dash = circ*Math.max(0,Math.min(1,pct));
+    return `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-width="${width}"
+      stroke-dasharray="${dash} ${circ-dash}" stroke-linecap="round"
+      transform="rotate(-90 ${c} ${c})" opacity="0.95"/>`;
+  }
+  function track(r, width){
+    return `<circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#2C3237" stroke-width="${width}"/>`;
+  }
+  return `
+  <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    ${track(r1,6)}${arc(r1,pct,color,6)}
+    <text x="${c}" y="${c-2}" text-anchor="middle" font-family="Oswald" font-weight="600" font-size="${size*0.22}" fill="#F1EDE5">${centerText}</text>
+    <text x="${c}" y="${c+size*0.16}" text-anchor="middle" font-family="Inter" font-size="${size*0.075}" fill="#7C8288">${label}</text>
+  </svg>`;
+}
+
+/* ============================================================
+   RESUMEN EJECUTIVO
+   ============================================================ */
+function renderResumen(content){
+  const R = window.APP_STATE.computed;
+  const obj = R.objetivos;
+
+  const ventasM3 = R.ventasMes?.totalM3 || 0;
+  const ventasPlan = obj ? Object.values(obj.comercial.bySucursal).reduce((s,v)=>s+v,0) : 0;
+  const despachoM3 = R.despachoMes?.totalM3 || 0;
+  const despachoPlan = obj ? Object.values(obj.logistica.bySucursal).reduce((s,v)=>s+v,0) : 0;
+  const recepcionM3 = R.recepcionMes?.totalM3 || 0;
+  const recepcionPlan = obj ? obj.abastecimiento.total : 0;
+  const fillPct = R.fillRateMes?.pct;
+
+  content.innerHTML = `
+    <div class="page-head">
+      <div><span class="eyebrow">Resumen ejecutivo</span><h1>Estado general del mes</h1>
+      <div class="sub">Ventas: ${monthLabel(R.ventasMes?.monthKey)} · Despachos: ${monthLabel(R.despachoMes?.monthKey)} · Fill rate: ${monthLabel(R.fillRateMes?.monthKey)}</div></div>
+    </div>
+
+    <div class="grid grid-4" style="margin-bottom:16px;">
+      <div class="kpi" style="--ring-color:var(--pine-soft)">
+        <div class="label">Recepción materia prima</div>
+        <div class="value">${fmtM3(recepcionM3)}<span class="unit">m³</span></div>
+        <div class="delta">${deltaBadge(recepcionM3, recepcionPlan)}</div>
+        <div class="foot">Meta: ${fmtM3(recepcionPlan)} m³</div>
+      </div>
+      <div class="kpi" style="--ring-color:var(--steel-soft)">
+        <div class="label">Despachos del mes</div>
+        <div class="value">${fmtM3(despachoM3)}<span class="unit">m³</span></div>
+        <div class="delta">${deltaBadge(despachoM3, despachoPlan)}</div>
+        <div class="foot">Meta: ${fmtM3(despachoPlan)} m³</div>
+      </div>
+      <div class="kpi" style="--ring-color:var(--amber-soft)">
+        <div class="label">Ventas del mes</div>
+        <div class="value">${fmtM3(ventasM3)}<span class="unit">m³</span></div>
+        <div class="delta">${deltaBadge(ventasM3, ventasPlan)}</div>
+        <div class="foot">Meta: ${fmtM3(ventasPlan)} m³ · ${fmtMoney(R.ventasMes?.totalNeto||0)} netos</div>
+      </div>
+      <div class="kpi" style="--ring-color:var(--green-soft)">
+        <div class="label">Fill rate — entregas a tiempo</div>
+        <div class="value">${fillPct!==null && fillPct!==undefined? fmtPct(fillPct):'—'}</div>
+        <div class="delta ${fillPct>=0.9?'up':(fillPct>=0.75?'flat':'down')}">${fillPct!==null?(fillPct>=0.9?'Buen nivel':(fillPct>=0.75?'Nivel medio':'Requiere atención')):''}</div>
+        <div class="foot">${fmtInt(R.fillRateMes?.aTiempo||0)} de ${fmtInt(R.fillRateMes?.total||0)} unid. a tiempo</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:2fr 1fr; grid-template-rows:auto auto; gap:16px; margin-bottom:16px;">
+      <div class="card" style="grid-column:1; grid-row:1;">
+        <div class="card-head"><div class="card-title">Cumplimiento de venta por sucursal<small>m³ real vs meta, mes actual</small></div></div>
+        <div class="chart-box" style="height:280px;"><canvas id="chart-resumen-ventas"></canvas></div>
+      </div>
+      <div class="card" style="grid-column:2; grid-row:1 / span 2; display:flex; flex-direction:column; min-height:0;">
+        <div class="card-head"><div class="card-title">Fill rate por sucursal<small>% entregado a tiempo</small></div></div>
+        <div id="ring-list" style="display:flex;flex-direction:column;gap:10px;flex:1;overflow-y:auto;padding-right:4px;"></div>
+      </div>
+      <div style="grid-column:1; grid-row:2; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="card">
+          <div class="card-head"><div class="card-title">Cobertura de stock óptimo<small>global, todas las sucursales</small></div></div>
+          <div style="display:flex;align-items:center;justify-content:center;padding:6px 0;">
+            ${(()=>{ const p=R.abastecimiento?.coberturaGlobalPct; return ringGauge(p||0, 96, p>=0.9?'#5E9E72':(p>=0.7?'#C9822F':'#BF5642'), '% cobertura', p!==null&&p!==undefined?Math.round(p*100)+'%':'—'); })()}
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Pedidos pendientes<small>saldo por despachar</small></div></div>
+          <div class="value" style="font-family:var(--font-display);font-size:34px;">${fmtInt(R.pendientes?.countOrdenes||0)}<span class="unit" style="font-size:13px;">órdenes</span></div>
+          <div class="foot">${R.pendientes?.countAtrasados||0} órdenes con fecha estimada vencida</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // ventas por sucursal chart
+  const bySuc = R.ventasMes?.bySucursalM3 || {};
+  const codes = sortedSucursalCodes(bySuc);
+  mkChart('chart-resumen-ventas', {
+    type:'bar',
+    data:{ labels: codes.map(sucursalName),
+      datasets:[
+        { label:'Real m³', data: codes.map(c=>bySuc[c]||0), backgroundColor:'#C9822F', borderRadius:3, barPercentage:.75*0.8, categoryPercentage:.8, grouped:false },
+        { label:'Meta m³', data: codes.map(c=> obj? (obj.comercial.bySucursal[c]||0):0), backgroundColor:'#3A3F44', borderRadius:3, barPercentage:.75, categoryPercentage:.8, grouped:false },
+      ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top', align:'end', labels:{boxWidth:10,boxHeight:10} } },
+      scales:{ y:{ grid:{color:'#23282C'} }, x:{ grid:{display:false} } } }
+  });
+
+  // fill rate ring list
+  const fr = R.fillRateMes;
+  const ringList = document.getElementById('ring-list');
+  if(fr){
+    const codes2 = sortedSucursalCodes(fr.bySucTot);
+    ringList.innerHTML = codes2.map(c=>{
+      const pct = fr.bySucursalPct[c];
+      const col = pct===null? '#7C8288' : (pct>=0.9?'#5E9E72':(pct>=0.75?'#C9822F':'#BF5642'));
+      return `<div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:44px;height:44px;flex-shrink:0;">${ringGauge(pct||0,44,col,'',pct!==null?Math.round(pct*100):'—')}</div>
+        <div style="flex:1;">
+          <div style="font-size:12.5px;font-weight:600;">${sucursalName(c)}</div>
+          <div style="font-size:10.5px;color:var(--text-mute);">${fmtInt(fr.bySucTot[c])} unid. entregadas</div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    ringList.innerHTML = '<div class="empty-note">Sin datos de fill rate</div>';
+  }
+}
+
+/* ============================================================
+   VENTAS
+   ============================================================ */
+function renderVentas(content){
+  const R = window.APP_STATE.computed;
+  const V = R.ventasMes;
+  const obj = R.objetivos;
+  if(!V){ content.innerHTML = '<div class="empty-note">Sin datos de ventas.</div>'; return; }
+  const codes = sortedSucursalCodes(V.bySucursalM3);
+  const fam = V.byFamiliaM3;
+  const famKeys = Object.keys(fam).sort((a,b)=>fam[b]-fam[a]);
+  const days = Object.keys(V.byDay).map(Number).sort((a,b)=>a-b);
+
+  content.innerHTML = `
+    <div class="page-head">
+      <div><span class="eyebrow">Ventas</span><h1>Ventas por sucursal — ${monthLabel(V.monthKey)}</h1>
+      <div class="sub">${fmtInt(V.rows.length)} documentos · ${fmtM3(V.totalM3)} m³ · ${fmtMoney(V.totalNeto)} netos</div></div>
+    </div>
+    <div class="grid grid-3" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Ranking de sucursales<small>m³ real vs meta del mes</small></div></div>
+        <div class="chart-box" style="height:280px;"><canvas id="v-chart-suc"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Mix por familia de producto<small>m³ vendidos</small></div></div>
+        <div class="chart-box" style="height:280px;"><canvas id="v-chart-fam"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Top 5 clientes<small>venta neta, todas las sucursales</small></div></div>
+        <div class="chart-box" style="height:280px;"><canvas id="v-chart-top-clientes"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-head"><div class="card-title">Evolución diaria<small>m³ vendidos por día del mes</small></div></div>
+      <div class="chart-box" style="height:220px;"><canvas id="v-chart-day"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Detalle por sucursal<small>real vs meta</small></div></div>
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Sucursal</th><th class="num">m³ real</th><th class="num">m³ meta</th><th class="num">Cumplimiento</th><th class="num">Venta neta</th></tr></thead>
+        <tbody>
+          ${codes.map(c=>{
+            const real = V.bySucursalM3[c]||0;
+            const plan = obj? (obj.comercial.bySucursal[c]||0) : 0;
+            const pct = plan>0? real/plan : null;
+            return `<tr><td>${sucursalName(c)}</td><td class="num">${fmtM3(real)}</td><td class="num">${fmtM3(plan)}</td>
+              <td class="num">${pct!==null? deltaBadge(real,plan): '—'}</td><td class="num">${fmtMoney(V.bySucursalMonto[c]||0)}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>
+    </div>
+  `;
+
+  mkChart('v-chart-suc', { type:'bar',
+    data:{ labels:codes.map(sucursalName), datasets:[
+      {label:'Real', data:codes.map(c=>V.bySucursalM3[c]||0), backgroundColor:'#C9822F', borderRadius:4},
+      {label:'Meta', data:codes.map(c=> obj?(obj.comercial.bySucursal[c]||0):0), backgroundColor:'#3A3F44', borderRadius:4},
+    ]},
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,boxHeight:10}}},
+      scales:{ x:{grid:{color:'#23282C'}}, y:{grid:{display:false}} } }
+  });
+  mkChart('v-chart-fam', { type:'doughnut',
+    data:{ labels:famKeys, datasets:[{ data:famKeys.map(k=>fam[k]), backgroundColor:['#C9822F','#5C8CA6','#3D6B52','#BF5642','#8A6BA8','#9CA3AA','#7C5A3A','#4E7E9E'] }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ position:'right', labels:{ boxWidth:10,boxHeight:10,font:{size:10.5},
+          generateLabels: (chart)=>{
+            const ds = chart.data.datasets[0];
+            const total = ds.data.reduce((s,v)=>s+v,0);
+            return chart.data.labels.map((label,i)=>({
+              text: `${label} (${total>0?(ds.data[i]/total*100).toFixed(1):'0.0'}%)`,
+              fillStyle: ds.backgroundColor[i], strokeStyle: ds.backgroundColor[i], index:i,
+            }));
+          } } },
+        tooltip:{ callbacks:{ label: ctx=>{
+          const total = ctx.dataset.data.reduce((s,v)=>s+v,0);
+          const pct = total>0? (ctx.parsed/total*100):0;
+          return `${ctx.label}: ${pct.toFixed(1)}%`;
+        } } },
+      } }
+  });
+  mkChart('v-chart-day', { type:'line',
+    data:{ labels:days.map(d=>d+''), datasets:[{ label:'m³', data:days.map(d=>V.byDay[d]), borderColor:'#C9822F', backgroundColor:'rgba(201,130,47,.15)', fill:true, tension:.3, pointRadius:2 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{grid:{color:'#23282C'}}, x:{grid:{display:false}} } }
+  });
+  const topC = V.topClientes || [];
+  mkChart('v-chart-top-clientes', { type:'bar',
+    data:{ labels:topC.map(([name])=> name.length>22? name.slice(0,20)+'…':name), datasets:[
+      { data:topC.map(([,v])=>v), backgroundColor:'#5C8CA6', borderRadius:4 },
+    ]},
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{
+        title: ctx => topC[ctx[0].dataIndex]?.[0] || '',
+        label: ctx => fmtMoney(ctx.parsed.x),
+      } } },
+      scales:{ x:{grid:{color:'#23282C'}, ticks:{callback:v=>'$'+(v/1e6).toFixed(1)+'M'}}, y:{grid:{display:false}, ticks:{font:{size:10.5}}} } }
+  });
+}
+
+/* ============================================================
+   DESPACHOS
+   ============================================================ */
+/* ============================================================
+   DESPACHO TIMELINE (día x sucursal) — puntos rojos con llenado
+   proporcional al volumen (camión completo = 28 m3)
+   ============================================================ */
+const TRUCK_FULL_M3 = 32;
+const TRUCK_MIN_M3 = 5;
+function dispatchDotPct(m3){
+  if(m3 >= TRUCK_FULL_M3) return 1;
+  if(m3 >= TRUCK_MIN_M3) return m3 / TRUCK_FULL_M3;
+  return 0;
+}
+function dotSVGIcon(pct){
+  const r = 7, size = 18, cx=size/2, cy=size/2;
+  const clipId = 'legend-clip-'+Math.round(pct*100);
+  const fillH = 2*r*pct;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="vertical-align:middle;flex-shrink:0;">
+    <defs><clipPath id="${clipId}"><rect x="${cx-r}" y="${cy+r-fillH}" width="${2*r}" height="${fillH}"/></clipPath></defs>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#BF5642" stroke-width="1.4"/>
+    ${pct>0?`<circle cx="${cx}" cy="${cy}" r="${r}" fill="#BF5642" clip-path="url(#${clipId})"/>`:''}
+  </svg>`;
+}
+function buildDespachoTimelineSVG(cal, freq, targetWidth){
+  if(!cal || cal.days.length===0 || cal.sucursales.length===0){
+    return '<div class="empty-note">Sin envíos a sucursales en el período cargado.</div>';
+  }
+  const labelW = 116, freqW = 52, rowH = 30, topPad = 26, leftPad = 8, rightPad = 16, bottomPad = 6;
+  const r = 9;
+  const days = cal.days, sucs = cal.sucursales;
+  const timelineX0 = labelW + freqW;
+  const minCellW = 30;
+  let cellW = minCellW;
+  if(targetWidth){
+    const available = targetWidth - timelineX0 - leftPad - rightPad;
+    cellW = Math.max(minCellW, available / days.length);
+  }
+  const width = timelineX0 + leftPad + days.length*cellW + rightPad;
+  const height = topPad + sucs.length*rowH + bottomPad;
+
+  let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" style="font-family:'Inter',sans-serif;max-width:100%;">`;
+  svg += `<defs></defs>`;
+
+  // day headers
+  days.forEach((d,j)=>{
+    const cx = timelineX0 + leftPad + j*cellW + cellW/2;
+    svg += `<text x="${cx}" y="${topPad-10}" text-anchor="middle" font-size="9.5" fill="#7C8288">${d}</text>`;
+  });
+  svg += `<text x="${labelW+freqW/2}" y="${topPad-10}" text-anchor="middle" font-size="9" fill="#7C8288">días</text>`;
+
+  // rows
+  sucs.forEach((code,i)=>{
+    const cy = topPad + i*rowH + rowH/2;
+    const isCliente = code==='CLIENTE';
+    // row background stripe (alternate) + separator line
+    if(i%2===1) svg += `<rect x="0" y="${topPad+i*rowH}" width="${width}" height="${rowH}" fill="#1B1F23"/>`;
+    svg += `<text x="${labelW}" y="${cy+3.5}" text-anchor="end" font-size="11.5" font-weight="600" fill="${isCliente?'#8A6BA8':'#B7B0A4'}">${sucursalName(code)}</text>`;
+    // columna de frecuencia (días promedio entre envíos)
+    const fval = freq ? freq[code] : undefined;
+    if(!isCliente && fval!==undefined && fval!==null){
+      const fcolor = fval<=3?'#5E9E72':(fval<=7?'#C9822F':'#BF5642');
+      svg += `<text x="${labelW+freqW/2}" y="${cy+3.5}" text-anchor="middle" font-size="11" font-weight="700" fill="${fcolor}">${fval.toFixed(1)}</text>`;
+    } else if(!isCliente){
+      svg += `<text x="${labelW+freqW/2}" y="${cy+3.5}" text-anchor="middle" font-size="11" fill="#4E555B">—</text>`;
+    }
+    // baseline for the row
+    svg += `<line x1="${timelineX0+leftPad}" y1="${cy}" x2="${width-rightPad}" y2="${cy}" stroke="#2C3237" stroke-width="1"/>`;
+    days.forEach((d,j)=>{
+      const cx = timelineX0 + leftPad + j*cellW + cellW/2;
+      const docs = (cal.docsByKey[code+'|'+d] || []).filter(doc=> dispatchDotPct(doc.m3) > 0);
+      if(docs.length===0) return;
+      const overlap = r*0.85; // desplazamiento tipo "eclipse parcial" entre puntos del mismo día
+      const startX = cx - (docs.length-1)*overlap/2;
+      docs.forEach((doc, k)=>{
+        const dcx = startX + k*overlap;
+        const pct = dispatchDotPct(doc.m3);
+        const fillH = 2*r*pct;
+        const clipId = `clip-${code}-${d}-${k}`.replace(/[^a-zA-Z0-9_-]/g,'');
+        svg += `<clipPath id="${clipId}"><rect x="${dcx-r}" y="${cy+r-fillH}" width="${2*r}" height="${fillH}"/></clipPath>`;
+        svg += `<circle cx="${dcx}" cy="${cy}" r="${r}" fill="#191D20" stroke="#BF5642" stroke-width="1.6"/>`;
+        svg += `<circle cx="${dcx}" cy="${cy}" r="${r}" fill="#BF5642" clip-path="url(#${clipId})"><title>${sucursalName(code)} · día ${d} · doc ${doc.numDoc} · ${fmtM3(doc.m3)} m³</title></circle>`;
+      });
+    });
+  });
+
+  svg += `</svg>`;
+  return svg;
+}
+
+function renderDespachos(content){
+  const R = window.APP_STATE.computed;
+  const Dd = R.despachoMes;
+  const obj = R.objetivos;
+  if(!Dd){ content.innerHTML = '<div class="empty-note">Sin datos de despachos.</div>'; return; }
+  const codes = sortedSucursalCodes(Dd.bySucursalM3);
+  const days = Object.keys(Dd.byDay).map(Number).sort((a,b)=>a-b);
+  const clienteM3 = Dd.bySucursalM3['CLIENTE'] || 0;
+  const DD = Dd.despachosDiarios || { porDia:{}, dias:[], promedioDiario:0, minDiario:0, maxDiario:0, total:0 };
+  const metaTotal = obj ? obj.logistica.total : 0;
+  const avancePct = metaTotal>0 ? Dd.totalM3/metaTotal : null;
+
+  const statCircle = (value, label, color)=>`
+    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <div style="width:56px;height:56px;border-radius:50%;border:2.5px solid ${color};display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:19px;color:${color};">${value}</div>
+      <div style="font-size:10px;color:var(--text-mute);text-align:center;">${label}</div>
+    </div>`;
+
+  content.innerHTML = `
+    <div class="page-head">
+      <div><span class="eyebrow">Despachos</span><h1>Envío a sucursales — ${monthLabel(Dd.monthKey)}</h1>
+      <div class="sub">${fmtInt(Dd.rowsDestCount)} movimientos a destino · ${fmtM3(Dd.totalM3)} m³ despachados · ${fmtM3(clienteM3)} m³ directo a cliente</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Despacho por destino<small>m³ real vs meta del mes · origen: planta</small></div></div>
+        <div class="chart-box" style="height:220px;"><canvas id="d-chart-suc"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Avance de despachos vs objetivo<small>m³ del mes · origen: planta (incluye directo a cliente)</small></div></div>
+        <div style="display:flex;align-items:center;gap:22px;padding:8px 0;">
+          ${ringGauge(avancePct||0, 130, avancePct>=1?'#5E9E72':(avancePct>=0.85?'#C9822F':'#BF5642'), '% avance', avancePct!==null?Math.round(avancePct*100)+'%':'—')}
+          <div>
+            <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:6px;">${fmtM3(Dd.totalM3)} m³ despachados</div>
+            <div style="font-size:12.5px;color:var(--text-dim);">${fmtM3(metaTotal)} m³ meta del mes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-head"><div class="card-title">Evolución diaria<small>m³ despachados por día</small></div></div>
+      <div style="display:flex;align-items:center;gap:26px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:280px;"><div class="chart-box" style="height:320px;"><canvas id="d-chart-day"></canvas></div></div>
+        <div style="width:120px;flex-shrink:0;">
+          <div style="font-size:10.5px;color:var(--text-mute);text-transform:uppercase;letter-spacing:.06em;text-align:center;margin-bottom:12px;line-height:1.4;">Estadística de Despachos por Día</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+            ${statCircle(DD.minDiario, 'Mínimo', '#BF5642')}
+            ${statCircle(DD.promedioDiario.toFixed(1), 'Promedio', '#C9822F')}
+            ${statCircle(DD.maxDiario, 'Máximo', '#5E9E72')}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Días de despacho por sucursal<small>días prom. entre envíos · cada punto es 1 documento de despacho (camiones con &gt;1 despacho el mismo día se ven superpuestos)</small></div></div>
+      <div class="table-wrap" id="d-timeline-wrap">${buildDespachoTimelineSVG(Dd.calendario, Dd.frecuenciaEnvio)}</div>
+      <div class="legend-row" style="margin-top:6px;">
+        <div class="legend-item">${dotSVGIcon(1)} ≥ 32 m³ (camión completo)</div>
+        <div class="legend-item">${dotSVGIcon(0.5)} 5–32 m³ (carga parcial)</div>
+        <div class="legend-item">${dotSVGIcon(0)} &lt; 5 m³ (sin punto)</div>
+      </div>
+    </div>
+  `;
+
+  mkChart('d-chart-suc', { type:'bar',
+    data:{ labels:codes.map(c=> c==='CLIENTE' ? 'Cliente (incluye servicios)' : sucursalName(c)), datasets:[
+      {label:'Real', data:codes.map(c=>Dd.bySucursalM3[c]||0), backgroundColor: codes.map(c=>c==='CLIENTE'?'#8A6BA8':'#5C8CA6'), borderRadius:3, barPercentage:.75*0.8, categoryPercentage:.8, grouped:false},
+      {label:'Meta', data:codes.map(c=> obj?(obj.logistica.bySucursal[c]||0):0), backgroundColor:'#3A3F44', borderRadius:3, barPercentage:(.75*0.8)*1.6, categoryPercentage:.8, grouped:false},
+    ]},
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,boxHeight:10}}},
+      scales:{ x:{grid:{color:'#23282C'}}, y:{grid:{display:false}, ticks:{font:{size:10.5}}} } }
+  });
+  mkChart('d-chart-day', { type:'line',
+    data:{ labels:days.map(d=>d+''), datasets:[{ label:'m³', data:days.map(d=>Dd.byDay[d]), borderColor:'#5C8CA6', backgroundColor:'rgba(92,140,166,.15)', fill:true, tension:.3, pointRadius:2 }]},
+    options:{ responsive:true, maintainAspectRatio:false, layout:{padding:{right:8}}, plugins:{legend:{display:false}},
+      scales:{ y:{grid:{color:'#23282C'}, min:0}, x:{grid:{display:false}, offset:false} } }
+  });
+
+  // estirar el gráfico de línea de tiempo al ancho real disponible (igual que Evolución Diaria)
+  const timelineWrap = document.getElementById('d-timeline-wrap');
+  if(timelineWrap){
+    const availableW = timelineWrap.clientWidth;
+    if(availableW>0){
+      timelineWrap.innerHTML = buildDespachoTimelineSVG(Dd.calendario, Dd.frecuenciaEnvio, availableW);
+    }
+  }
+}
+
+/* ============================================================
+   RECEPCIONES
+   ============================================================ */
+function renderRecepciones(content){
+  const R = window.APP_STATE.computed;
+  const Rc = R.recepcionMes;
+  const obj = R.objetivos;
+  if(!Rc){ content.innerHTML = '<div class="empty-note">Sin datos de recepción.</div>'; return; }
+  const days = Object.keys(Rc.byDay).map(Number).sort((a,b)=>a-b);
+  const provKeys = Object.keys(Rc.byProveedorM3).sort((a,b)=>Rc.byProveedorM3[b]-Rc.byProveedorM3[a]).slice(0,8);
+  const planTotal = obj? obj.abastecimiento.total : 0; // celda D2 de la hoja Objetivos
+  const cumplimientoPct = planTotal>0 ? Rc.totalM3/planTotal : null;
+  const comunaKeys = Object.keys(Rc.byComunaM3).sort((a,b)=>Rc.byComunaM3[b]-Rc.byComunaM3[a]);
+  const comunaColors = ['#C9822F','#5C8CA6','#3D6B52','#BF5642','#8A6BA8','#9CA3AA','#7C5A3A','#4E7E9E','#6B8E5A','#A66B8E'];
+
+  // recepción por descripción vs objetivos de abastecimiento: primero intenta coincidencia directa
+  // por nombre (normalizada, sin tildes/mayúsculas), y si no hay, usa alias de una versión anterior del archivo.
+  const LEGACY_ALIASES_OBJETIVO = { 'trozos':'aserrable', 'postes':'poste', 'cabezales':'cabezal' };
+  const objItemsByName = {};
+  (obj?.abastecimiento?.items || []).forEach(it=> objItemsByName[normText(it.nombre)] = it.plan);
+  const descKeys = Object.keys(Rc.byDescripcionM3).sort((a,b)=>Rc.byDescripcionM3[b]-Rc.byDescripcionM3[a]);
+  function metaParaDescripcion(descKey){
+    const nk = normText(descKey);
+    if(objItemsByName[nk] !== undefined) return objItemsByName[nk];
+    const alias = LEGACY_ALIASES_OBJETIVO[nk];
+    if(alias && objItemsByName[alias] !== undefined) return objItemsByName[alias];
+    return 0;
+  }
+
+  content.innerHTML = `
+    <div class="page-head">
+      <div><span class="eyebrow">Abastecimiento MP</span><h1>Recepción de materia prima — ${monthLabel(Rc.monthKey)}</h1>
+      <div class="sub">${fmtInt(Rc.rows.length)} registros · ${fmtM3(Rc.totalM3)} m³ recibidos</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:16px;">
+      <div class="kpi">
+        <div class="label">Total recibido</div>
+        <div class="value">${fmtM3(Rc.totalM3)}<span class="unit">m³</span></div>
+        <div class="delta">${deltaBadge(Rc.totalM3, planTotal)}</div>
+        <div class="foot">Meta abastecimiento: ${fmtM3(planTotal)} m³</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Cumplimiento de abastecimiento<small>vs Objetivos del mes (celda D2)</small></div></div>
+        <div style="display:flex;align-items:center;gap:18px;">
+          ${ringGauge(cumplimientoPct||0, 84, cumplimientoPct>=1?'#5E9E72':(cumplimientoPct>=0.85?'#C9822F':'#BF5642'), '% cumpl.', cumplimientoPct!==null?Math.round(cumplimientoPct*100)+'%':'—')}
+          <div style="font-size:12px;color:var(--text-mute);">${fmtM3(Rc.totalM3)} m³ recibidos<br/>de ${fmtM3(planTotal)} m³ meta</div>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-3" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Avance de Recepción vs objetivo<small>m³ real vs meta de abastecimiento, por tipo</small></div></div>
+        <div class="chart-box" style="height:280px;"><canvas id="r-chart-desc"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Top proveedores<small>m³ recibidos</small></div></div>
+        <div class="chart-box" style="height:280px;"><canvas id="r-chart-prov"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Comuna de origen<small>% m³ recibidos, origen de trozos</small></div></div>
+        <div class="chart-box" style="height:280px;"><canvas id="r-chart-comuna"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Evolución diaria<small>m³ recibidos por día · clic en una barra para ver el detalle por descripción</small></div></div>
+      <div class="chart-box" style="height:260px;"><canvas id="r-chart-day"></canvas></div>
+    </div>
+  `;
+
+  mkChart('r-chart-day', { type:'bar',
+    data:{ labels:days.map(d=>d+''), datasets:[{ data:days.map(d=>Rc.byDay[d]), backgroundColor:'#3D6B52', borderRadius:3 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      onHover:(evt,els)=>{ evt.native.target.style.cursor = els.length?'pointer':'default'; },
+      scales:{ y:{grid:{color:'#23282C'}}, x:{grid:{display:false}} },
+      onClick:(evt,elements)=>{
+        if(!elements.length) return;
+        const day = days[elements[0].index];
+        openRecepcionDiaDetalleModal(day, Rc);
+      } }
+  });
+  mkChart('r-chart-prov', { type:'bar',
+    data:{ labels:provKeys, datasets:[{ data:provKeys.map(k=>Rc.byProveedorM3[k]), backgroundColor:'#C9822F', borderRadius:4 }]},
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{grid:{color:'#23282C'}}, y:{grid:{display:false}, ticks:{font:{size:10}}} } }
+  });
+  mkChart('r-chart-comuna', { type:'pie',
+    data:{ labels:comunaKeys, datasets:[{ data:comunaKeys.map(k=>Rc.byComunaM3[k]), backgroundColor:comunaKeys.map((_,i)=>comunaColors[i%comunaColors.length]) }]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'right', labels:{boxWidth:10,boxHeight:10,font:{size:10}} },
+        tooltip:{ callbacks:{ label: ctx=>{
+          const total = comunaKeys.reduce((s,k)=>s+Rc.byComunaM3[k],0);
+          const pct = total>0? (ctx.parsed/total*100):0;
+          return `${ctx.label}: ${fmtM3(ctx.parsed)} m³ (${pct.toFixed(1)}%)`;
+        } } } } }
+  });
+  mkChart('r-chart-desc', { type:'bar',
+    data:{ labels:descKeys, datasets:[
+      { label:'Real', data:descKeys.map(k=>Rc.byDescripcionM3[k]), backgroundColor:'#3D6B52', borderRadius:4 },
+      { label:'Meta', data:descKeys.map(k=> metaParaDescripcion(k)), backgroundColor:'#3A3F44', borderRadius:4 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'top',align:'end',labels:{boxWidth:10,boxHeight:10}},
+        tooltip:{ callbacks:{ label: ctx=> `${ctx.dataset.label}: ${fmtM3(ctx.parsed.y)} m³` } } },
+      scales:{ y:{grid:{color:'#23282C'}}, x:{grid:{display:false}} } }
+  });
+}
+
+/* ============================================================
+   MODAL: detalle de recepción por descripción, para un día
+   ============================================================ */
+function openRecepcionDiaDetalleModal(day, Rc){
+  const porDescripcion = (Rc.byDayDescripcion && Rc.byDayDescripcion[day]) || {};
+  const entries = Object.entries(porDescripcion).sort((a,b)=>b[1]-a[1]);
+  const total = entries.reduce((s,[,v])=>s+v,0);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box" style="max-width:420px;">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title">Recepción del día ${day}</div>
+          <div class="modal-sub">${fmtM3(total)} m³ recibidos en total</div>
+        </div>
+        <button class="modal-close" id="recepcion-dia-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Descripción</th><th class="num">m³</th><th class="num">%</th></tr></thead>
+          <tbody>
+            ${entries.map(([desc,m3])=>`<tr><td>${desc}</td><td class="num">${fmtM3(m3)}</td>
+              <td class="num">${total>0?(m3/total*100).toFixed(1):'0.0'}%</td></tr>`).join('')}
+            ${entries.length===0?'<tr><td colspan="3" class="empty-note">Sin recepciones ese día</td></tr>':''}
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const close = ()=> overlay.remove();
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
+  overlay.querySelector('#recepcion-dia-modal-close').addEventListener('click', close);
+  document.addEventListener('keydown', function esc(e){ if(e.key==='Escape'){ close(); document.removeEventListener('keydown', esc); } });
+}
+
+/* ============================================================
+   ENTREGAS A TIEMPO / FILL RATE
+   ============================================================ */
+function renderEntregas(content){
+  const R = window.APP_STATE.computed;
+  const F = R.fillRateMes;
+  if(!F){ content.innerHTML = '<div class="empty-note">Sin datos de fill rate.</div>'; return; }
+  const codes = sortedSucursalCodes(F.bySucTot);
+  const DE = F.diasEntrega || { sucursales:[], dias:[], matrix:{} };
+
+  // escala de color heatmap según volumen (más oscuro = más volumen)
+  const maxVal = Math.max(1, ...DE.sucursales.flatMap(c=> Object.values(DE.matrix[c]||{})));
+  function heatColor(v){
+    if(!v) return 'transparent';
+    const t = Math.min(1, v/maxVal);
+    // interpola entre pine oscuro (bajo) y amber (alto)
+    const r1=44,g1=61,b1=53, r2=201,g2=130,b2=47;
+    const r=Math.round(r1+(r2-r1)*t), g=Math.round(g1+(g2-g1)*t), b=Math.round(b1+(b2-b1)*t);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  content.innerHTML = `
+    <div class="page-head">
+      <div><span class="eyebrow">Entregas a tiempo</span><h1>Fill rate — ${monthLabel(F.monthKey)}</h1>
+      <div class="sub">Fecha comprometida vs fecha real de entrega · ${fmtInt(F.rows.length)} líneas de despacho</div></div>
+    </div>
+    <div class="two-col" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Fill rate general del mes</div></div>
+        <div style="display:flex;align-items:center;gap:26px;padding:10px 0;">
+          ${ringGauge(F.pct||0, 140, F.pct>=0.9?'#5E9E72':(F.pct>=0.75?'#C9822F':'#BF5642'), '% a tiempo', F.pct!==null?Math.round(F.pct*100)+'%':'—')}
+          <div>
+            <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:6px;">${fmtInt(F.aTiempo)} unidades entregadas a tiempo</div>
+            <div style="font-size:12.5px;color:var(--text-dim);margin-bottom:6px;">${fmtInt(F.total-F.aTiempo)} unidades fuera de plazo</div>
+            <div style="font-size:12.5px;color:var(--text-dim);">${fmtInt(F.total)} unidades totales entregadas</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Fill rate por sucursal<small>% a tiempo</small></div></div>
+        <div class="chart-box" style="height:230px;"><canvas id="e-chart-suc"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div class="card-title">Matriz de días de entrega<small>días entre emisión (F_EMISION) y entrega real (FRENTREGA) · valor = cantidad de entregas (documentos)</small></div></div>
+      <div class="table-wrap"><table class="data">
+        <thead><tr><th>Sucursal</th>${DE.dias.map(d=>`<th class="num">${d}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${DE.sucursales.map(c=>`<tr><td>${sucursalName(c)}</td>${DE.dias.map(d=>{
+            const v = (DE.matrix[c]||{})[d];
+            return v
+              ? `<td class="num matrix-cell" data-suc="${c}" data-day="${d}" style="background:${heatColor(v)};">${fmtInt(v)}</td>`
+              : `<td class="num" style="color:var(--text-mute);">—</td>`;
+          }).join('')}</tr>`).join('')}
+          ${DE.sucursales.length===0?`<tr><td colspan="${DE.dias.length+1}" class="empty-note">Sin datos de entrega en el período</td></tr>`:''}
+        </tbody>
+      </table></div>
+      <div style="font-size:10.5px;color:var(--text-mute);margin-top:8px;">Días en el eje horizontal · "30+" agrupa entregas con más de 30 días entre emisión y entrega · color más intenso = mayor cantidad de entregas</div>
+    </div>
+  `;
+
+  mkChart('e-chart-suc', { type:'bar',
+    data:{ labels:codes.map(sucursalName), datasets:[{ data:codes.map(c=> (F.bySucursalPct[c]||0)*100), backgroundColor: codes.map(c=>{
+      const p=F.bySucursalPct[c]; return p>=0.9?'#5E9E72':(p>=0.75?'#C9822F':'#BF5642');
+    }), borderRadius:4 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>ctx.parsed.y.toFixed(1)+'%'}}},
+      scales:{ y:{grid:{color:'#23282C'}, ticks:{callback:v=>v+'%'}, max:100}, x:{grid:{display:false}} } }
+  });
+
+  content.querySelectorAll('.matrix-cell').forEach(td=>{
+    td.addEventListener('click', ()=> openMatrizDetailModal(td.dataset.suc, td.dataset.day, F));
+  });
+}
+
+/* ============================================================
+   MODAL: detalle de la matriz de días de entrega
+   ============================================================ */
+function openMatrizDetailModal(sucursalCode, bucket, F){
+  const detalle = F.rows.filter(r=> r.sucursalCode===sucursalCode && diasBucketForRow(r)===bucket && r.aDestiempo>0)
+    .sort((a,b)=> b.aDestiempo - a.aDestiempo);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title">Órdenes fuera de plazo — ${sucursalName(sucursalCode)} · ${bucket==='30+'?'más de 30 días':bucket+(bucket==='1'?' día':' días')}</div>
+          <div class="modal-sub">${detalle.length} línea${detalle.length===1?'':'s'} con entrega fuera de tiempo en esta celda</div>
+        </div>
+        <button class="modal-close" id="matrix-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>N° Documento</th><th>Cliente</th><th>SKU</th><th>Producto</th><th class="num">Cant. fuera de plazo</th><th>F. Compromiso</th><th>F. Entrega</th></tr></thead>
+          <tbody>
+            ${detalle.map(r=>`<tr>
+              <td>${r.numero||'—'}</td><td>${r.cliente}</td><td>${r.sku}</td><td>${r.producto}</td>
+              <td class="num">${fmtInt(r.aDestiempo)}</td><td>${fmtDate(r.fCompromiso)}</td><td>${fmtDate(r.fEntrega)}</td>
+            </tr>`).join('')}
+            ${detalle.length===0?'<tr><td colspan="7" class="empty-note">No hay líneas fuera de plazo en esta celda</td></tr>':''}
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const close = ()=> overlay.remove();
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
+  overlay.querySelector('#matrix-modal-close').addEventListener('click', close);
+  document.addEventListener('keydown', function esc(e){ if(e.key==='Escape'){ close(); document.removeEventListener('keydown', esc); } });
+}
+
+/* ============================================================
+   STOCK Y ABASTECIMIENTO
+   ============================================================ */
+function renderStock(content){
+  const R = window.APP_STATE.computed;
+  const A = R.abastecimiento;
+  if(!A){ content.innerHTML = '<div class="empty-note">Sin datos de stock óptimo.</div>'; return; }
+
+  const bySucReponer = A.bySucursalReponer;
+  const codes = sortedSucursalCodes(bySucReponer);
+  const cobertura = A.coberturaPctSucursal || {};
+  const coberturaCodes = sortedSucursalCodes(cobertura);
+  const stockM3 = R.stockM3PorSucursal || {};
+  const stockM3Codes = sortedSucursalCodes(stockM3);
+  const top5 = A.top5Saldo || [];
+  const top5Madi = A.top5SaldoMadi || [];
+  const P = R.pendientes;
+  const ordenesPend = P?.ordenesPorSucursal || {};
+  const ordenesPendCodes = sortedSucursalCodes(ordenesPend);
+  const unitLabel = (familia)=> familia==='MADI' ? 'Pqts' : 'piezas';
+  const listadoTable = (rows, emptyMsg)=>`
+    <div class="table-wrap"><table class="data">
+      <thead><tr><th>SKU</th><th>Descripción</th><th class="num">Saldo total</th></tr></thead>
+      <tbody>
+        ${rows.map(r=>`<tr><td>${r.sku}</td><td>${r.desc}</td>
+          <td class="num">${fmtInt(r.total)} ${unitLabel(r.familia)}</td></tr>`).join('')}
+        ${rows.length===0?`<tr><td colspan="3" class="empty-note">${emptyMsg}</td></tr>`:''}
+      </tbody>
+    </table></div>`;
+
+  content.innerHTML = `
+    <div class="page-head">
+      <div><span class="eyebrow">Stock Sucursales</span><h1>Alertas de reposición</h1>
+      <div class="sub">${fmtInt(A.countReponer)} de ${fmtInt(A.countTotal)} combinaciones SKU-sucursal en estado "Reponer"</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Stock por sucursal<small>m³ · familias MADI, ROLL, PONO y TBRO</small></div></div>
+        <div class="chart-box" style="height:220px;"><canvas id="s-chart-stock-m3"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Órdenes pendientes por sucursal<small>cantidad de órdenes con saldo · clic para ver el detalle</small></div></div>
+        <div class="chart-box" style="height:220px;"><canvas id="s-chart-ordenes-pend"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-head"><div class="card-title">% Cobertura de stock óptimo<small>stock actual vs óptimo definido, por SKU · tope 100%</small></div></div>
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:14px;padding:8px 4px;">
+        ${coberturaCodes.map(c=>{
+          const p = cobertura[c]||0;
+          const col = p>=0.9?'#5E9E72':(p>=0.7?'#C9822F':'#BF5642');
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex:1;min-width:90px;">
+            ${ringGauge(p, 90, col, '', Math.round(p*100)+'%')}
+            <div style="font-size:11.5px;font-weight:600;color:var(--text-dim);text-align:center;">${sucursalName(c)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Listado priorizado — MADI<small>top 5 SKU con más saldo de abastecimiento, familia MADI</small></div></div>
+        ${listadoTable(top5Madi, 'No hay saldo de abastecimiento pendiente en MADI')}
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Listado priorizado<small>top 5 SKU con más saldo de abastecimiento (todas las sucursales sumadas)</small></div></div>
+        ${listadoTable(top5, 'No hay saldo de abastecimiento pendiente')}
+      </div>
+    </div>
+  `;
+
+  mkChart('s-chart-stock-m3', { type:'bar',
+    data:{ labels:stockM3Codes.map(sucursalName), datasets:[{ data:stockM3Codes.map(c=>stockM3[c]||0), backgroundColor:'#5C8CA6', borderRadius:4 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{ callbacks:{ label: ctx=> fmtM3(ctx.parsed.y)+' m³' } } },
+      scales:{ y:{grid:{color:'#23282C'}}, x:{grid:{display:false}} } }
+  });
+  mkChart('s-chart-ordenes-pend', { type:'bar',
+    data:{ labels:ordenesPendCodes.map(sucursalName), datasets:[{ data:ordenesPendCodes.map(c=>ordenesPend[c]||0), backgroundColor:'#C9822F', borderRadius:4 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      onHover:(evt,els)=>{ evt.native.target.style.cursor = els.length?'pointer':'default'; },
+      scales:{ y:{grid:{color:'#23282C'}}, x:{grid:{display:false}} },
+      onClick:(evt,elements)=>{
+        if(!elements.length) return;
+        const code = ordenesPendCodes[elements[0].index];
+        openOrdenesPendientesModal(code, P);
+      } }
+  });
+}
+
+/* ============================================================
+   MODAL: detalle de órdenes pendientes por sucursal
+   ============================================================ */
+function openOrdenesPendientesModal(sucursalCode, P){
+  const detalle = (P?.ordenesDetalle?.[sucursalCode] || []).slice();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-head">
+        <div>
+          <div class="modal-title">Órdenes pendientes — ${sucursalName(sucursalCode)}</div>
+          <div class="modal-sub">${detalle.length} orden${detalle.length===1?'':'es'} con saldo por despachar</div>
+        </div>
+        <button class="modal-close" id="ordenes-modal-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>N° Orden</th><th>Cliente</th><th>Fecha del pedido</th><th>Estado</th></tr></thead>
+          <tbody>
+            ${detalle.map(o=>`<tr>
+              <td>${o.orden}</td><td>${o.cliente}</td><td>${fmtDate(o.fechaPedido)}</td>
+              <td>${o.atrasado?'<span class="badge bad">Atrasado</span>':'<span class="badge ok">En plazo</span>'}</td>
+            </tr>`).join('')}
+            ${detalle.length===0?'<tr><td colspan="4" class="empty-note">Sin órdenes pendientes para esta sucursal</td></tr>':''}
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const close = ()=> overlay.remove();
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
+  overlay.querySelector('#ordenes-modal-close').addEventListener('click', close);
+  document.addEventListener('keydown', function esc(e){ if(e.key==='Escape'){ close(); document.removeEventListener('keydown', esc); } });
+}
+
+/* ============================================================
+   SUPABASE — lectura pública para el equipo, escritura solo admin.
+   Reemplaza el proyecto Supabase nuevo y separado para este dashboard
+   (no el mismo de Control Pedidos).
+   ============================================================ */
+const SUPABASE_URL = 'https://lcsuqxnforcsredqffrb.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_vyL16T21XXlPwZ0CyFjW-w_Pn8g9mke';
+// Prefijo de namespace: si reutilizas el mismo proyecto Supabase de Control Pedidos,
+// esto evita que las claves de este dashboard choquen con las de esa app en la misma tabla.
+const SB_PREFIX = 'supplychain:';
+const SUPABASE_CONFIGURED = SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY && SUPABASE_ANON_KEY !== 'TU_SUPABASE_ANON_KEY';
+const supabaseClient = (SUPABASE_CONFIGURED && window.supabase) ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+// Sube este número cada vez que cambie la lógica de un parser (qué columna se usa, cómo se calcula un campo, etc.)
+// para que los datos publicados se consideren obsoletos y el admin sepa que debe volver a cargar ese archivo.
+const PARSER_SCHEMA_VERSION = 6; // v6: stockOptimo incluye stockObjetivoPzs (Stock Objetivo PZS) para % de cobertura
+
+// Campos fecha por dataset — Supabase guarda JSON puro, así que hay que revivir Date al leer.
+const DATE_FIELDS = {
+  pendientes: ['fechaPedido','feer'],
+  recepcion: ['fecha'],
+  despacho: ['fecha'],
+  ventas: ['fecha'],
+  fillrate: ['fEmision','fCompromiso','fEntrega'],
+};
+function reviveDates(slotKey, rows){
+  const fields = DATE_FIELDS[slotKey];
+  if(!fields || !Array.isArray(rows)) return rows;
+  rows.forEach(r=>{ fields.forEach(f=>{ if(r[f]) r[f] = new Date(r[f]); }); });
+  return rows;
+}
+
+async function sbFetchAll(){
+  if(!supabaseClient) return {};
+  const keys = [];
+  FILE_SLOTS.forEach(s=>{ keys.push(SB_PREFIX+'slot:'+s.key, SB_PREFIX+'meta:'+s.key); });
+  const { data, error } = await supabaseClient.from('app_storage').select('key,value').in('key', keys);
+  if(error){ console.error('Supabase fetch error', error); return {}; }
+  const map = {};
+  (data||[]).forEach(row=>{ map[row.key] = row.value; });
+  return map;
+}
+async function persistSlot(key, parsedRows){
+  if(!supabaseClient) return { error:'Supabase no está configurado en este archivo.' };
+  try{
+    const meta = { count: Array.isArray(parsedRows)?parsedRows.length:0, savedAt: new Date().toISOString(), schemaVersion: PARSER_SCHEMA_VERSION };
+    const { error } = await supabaseClient.from('app_storage').upsert([
+      { key:SB_PREFIX+'slot:'+key, value: parsedRows, updated_at: new Date().toISOString() },
+      { key:SB_PREFIX+'meta:'+key, value: meta, updated_at: new Date().toISOString() },
+    ], { onConflict:'key' });
+    if(error) console.error('Supabase persist error', key, error);
+    return { error };
+  }catch(ex){
+    console.error('Supabase persist exception', key, ex);
+    return { error: { message: (ex && ex.message) || 'Error inesperado al publicar. Revisa tu conexión o vuelve a iniciar sesión.' } };
+  }
+}
+async function loadPersistedAll(){
+  const state = window.APP_STATE;
+  state._slotStatus = state._slotStatus || {};
+  state._slotCount = state._slotCount || {};
+  state._slotSavedAt = state._slotSavedAt || {};
+  if(!supabaseClient){ state._supabaseNotConfigured = true; return false; }
+  const map = await sbFetchAll();
+  let anyFound = false;
+  let anyStale = false;
+  for(const slot of FILE_SLOTS){
+    const rows = map[SB_PREFIX+'slot:'+slot.key];
+    const meta = map[SB_PREFIX+'meta:'+slot.key];
+    if(rows !== undefined){
+      if((meta?.schemaVersion||0) !== PARSER_SCHEMA_VERSION){
+        anyStale = true;
+        continue;
+      }
+      reviveDates(slot.key, rows);
+      state.data[slot.key] = rows;
+      state._slotStatus[slot.key] = 'done';
+      state._slotCount[slot.key] = meta?.count ?? (Array.isArray(rows)?rows.length:0);
+      state._slotSavedAt[slot.key] = meta?.savedAt || null;
+      anyFound = true;
+      if(slot.key==='stock' && Array.isArray(rows)){
+        rows.forEach(r=>{ if(r.sku && !state.skuFamilia[r.sku]) state.skuFamilia[r.sku] = r.familia; });
+      }
+    }
+  }
+  state._staleSchemaDetected = anyStale;
+  return anyFound;
+}
+async function clearPersisted(){
+  if(supabaseClient){
+    const keys = [];
+    FILE_SLOTS.forEach(s=>{ keys.push(SB_PREFIX+'slot:'+s.key, SB_PREFIX+'meta:'+s.key); });
+    const { error } = await supabaseClient.from('app_storage').delete().in('key', keys);
+    if(error) return { error };
+  }
+  window.APP_STATE.data = { ventas:null, despacho:null, recepcion:null, fillrate:null, stock:null, stockOptimo:null, pendientes:null, objetivos:null };
+  window.APP_STATE.skuFamilia = {};
+  window.APP_STATE._slotStatus = {};
+  window.APP_STATE._slotCount = {};
+  window.APP_STATE._slotSavedAt = {};
+}
+
+/* ---- Autenticación de administrador (Supabase Auth) ---- */
+async function signInAdmin(email, password){
+  if(!supabaseClient) return { error:{ message:'Supabase no está configurado en este archivo.' } };
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if(!error) window.APP_STATE.isAdmin = true;
+  return { data, error };
+}
+async function signOutAdmin(){
+  if(supabaseClient) await supabaseClient.auth.signOut();
+  window.APP_STATE.isAdmin = false;
+  window.APP_STATE.activeTab = hasAllData() ? 'resumen' : 'upload';
+  render();
+}
+async function refreshAdminSession(){
+  if(!supabaseClient){ window.APP_STATE.isAdmin = false; return; }
+  const { data } = await supabaseClient.auth.getSession();
+  window.APP_STATE.isAdmin = !!data?.session;
+}
+
+function openAdminLoginModal(){
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-box" style="max-width:360px;">
+      <div class="modal-head">
+        <div><div class="modal-title">Acceso administrador</div><div class="modal-sub">Solo para cargar o reemplazar las bases</div></div>
+        <button class="modal-close" id="admin-modal-close">✕</button>
+      </div>
+      <div class="modal-body" style="padding-top:16px;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <input type="email" id="admin-email" placeholder="Correo" class="search" style="width:100%;"/>
+          <input type="password" id="admin-pass" placeholder="Contraseña" class="search" style="width:100%;"/>
+          <div id="admin-login-error" style="color:var(--brick);font-size:12px;display:none;"></div>
+          <button class="btn-primary" id="admin-login-submit" style="margin-top:4px;">Ingresar</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const close = ()=> overlay.remove();
+  overlay.addEventListener('click', e=>{ if(e.target===overlay) close(); });
+  overlay.querySelector('#admin-modal-close').addEventListener('click', close);
+  overlay.querySelector('#admin-login-submit').addEventListener('click', async ()=>{
+    const email = overlay.querySelector('#admin-email').value.trim();
+    const pass = overlay.querySelector('#admin-pass').value;
+    const errEl = overlay.querySelector('#admin-login-error');
+    const { error } = await signInAdmin(email, pass);
+    if(error){ errEl.textContent = error.message || 'No se pudo iniciar sesión.'; errEl.style.display='block'; return; }
+    close();
+    window.APP_STATE.activeTab = 'upload';
+    render();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async ()=>{
+  await refreshAdminSession();
+  const found = await loadPersistedAll();
+  if(found && hasAllData()){ window.APP_STATE.activeTab = 'resumen'; }
+  render();
+});
+</script>
+</body>
+</html>
