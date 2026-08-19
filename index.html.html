@@ -982,6 +982,8 @@ function attachUploadHandlers(){
       }catch(err){
         console.error(err);
         window.APP_STATE._slotStatus[key] = 'error';
+        window.APP_STATE._slotErrorMsg = window.APP_STATE._slotErrorMsg || {};
+        window.APP_STATE._slotErrorMsg[key] = 'Error inesperado: '+(err && err.message ? err.message : String(err));
       }
       render();
     });
@@ -1894,13 +1896,18 @@ async function sbFetchAll(){
 }
 async function persistSlot(key, parsedRows){
   if(!supabaseClient) return { error:'Supabase no está configurado en este archivo.' };
-  const meta = { count: Array.isArray(parsedRows)?parsedRows.length:0, savedAt: new Date().toISOString(), schemaVersion: PARSER_SCHEMA_VERSION };
-  const { error } = await supabaseClient.from('app_storage').upsert([
-    { key:SB_PREFIX+'slot:'+key, value: parsedRows, updated_at: new Date().toISOString() },
-    { key:SB_PREFIX+'meta:'+key, value: meta, updated_at: new Date().toISOString() },
-  ], { onConflict:'key' });
-  if(error) console.error('Supabase persist error', error);
-  return { error };
+  try{
+    const meta = { count: Array.isArray(parsedRows)?parsedRows.length:0, savedAt: new Date().toISOString(), schemaVersion: PARSER_SCHEMA_VERSION };
+    const { error } = await supabaseClient.from('app_storage').upsert([
+      { key:SB_PREFIX+'slot:'+key, value: parsedRows, updated_at: new Date().toISOString() },
+      { key:SB_PREFIX+'meta:'+key, value: meta, updated_at: new Date().toISOString() },
+    ], { onConflict:'key' });
+    if(error) console.error('Supabase persist error', key, error);
+    return { error };
+  }catch(ex){
+    console.error('Supabase persist exception', key, ex);
+    return { error: { message: (ex && ex.message) || 'Error inesperado al publicar. Revisa tu conexión o vuelve a iniciar sesión.' } };
+  }
 }
 async function loadPersistedAll(){
   const state = window.APP_STATE;
